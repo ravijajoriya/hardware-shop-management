@@ -33,6 +33,7 @@ async function logout() {
       <nav class="nav" aria-label="Main">
         <RouterLink :to="{ name: 'dashboard' }">Dashboard</RouterLink>
         <RouterLink :to="{ name: 'categories' }">Categories</RouterLink>
+        <RouterLink :to="{ name: 'brands' }">Brands</RouterLink>
       </nav>
 
       <div class="account">

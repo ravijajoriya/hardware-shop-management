@@ -69,7 +69,7 @@ onMounted(load)
   <p v-else-if="store.tree.length === 0">No categories yet. Create the first one to get started.</p>
 
   <div v-else class="table-wrap">
-    <table>
+    <table class="data-table">
       <thead>
         <tr>
           <th scope="col">Name</th>
@@ -86,7 +86,7 @@ onMounted(load)
               {{ category.name }}
             </span>
           </td>
-          <td class="slug">{{ category.slug }}</td>
+          <td class="mono">{{ category.slug }}</td>
           <td>
             <span class="badge" :class="{ 'badge-active': category.is_active }">
               {{ category.is_active ? 'Active' : 'Inactive' }}
@@ -130,51 +130,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.load-error {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 0.65rem 1rem;
-  text-align: left;
-  white-space: nowrap;
-}
-
-th {
-  font-weight: 600;
-  color: var(--color-heading);
-  background: var(--color-background-soft);
-}
-
-tbody tr {
-  border-top: 1px solid var(--color-border);
-}
-
 .name {
   display: inline-block;
   color: var(--color-heading);
@@ -183,31 +138,5 @@ tbody tr {
 .branch {
   margin-right: 0.25rem;
   opacity: 0.6;
-}
-
-.slug {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.1rem 0.6rem;
-  font-size: 0.85rem;
-  border: 1px solid var(--color-border-hover);
-  border-radius: 999px;
-}
-
-.badge-active {
-  color: var(--color-success);
-  border-color: currentColor;
-}
-
-.actions {
-  text-align: right;
-}
-
-.actions .btn + .btn {
-  margin-left: 0.5rem;
 }
 </style>
