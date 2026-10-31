@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Models\Category;
 use App\Repositories\CategoryRepository;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CategoryService
 {
-    public function __construct(private readonly CategoryRepository $categories) {}
+    public function __construct(
+        private readonly CategoryRepository $categories,
+        private readonly SlugService $slugs,
+    ) {}
 
     /**
      * @return Collection<int, Category>
@@ -59,29 +61,16 @@ class CategoryService
     }
 
     /**
-     * Use the given slug, or build a unique one from the name when it is blank.
-     *
      * @param  array<string, mixed>  $data
      */
     private function resolveSlug(array $data, ?Category $category = null): string
     {
-        if (filled($data['slug'] ?? null)) {
-            return $data['slug'];
-        }
-
-        // An update that does not mention the slug keeps the current one.
-        if ($category && ! array_key_exists('slug', $data)) {
-            return $category->slug;
-        }
-
-        $base = Str::slug($data['name']) ?: 'category';
-        $slug = $base;
-
-        for ($suffix = 2; $this->categories->slugExists($slug, $category?->id); $suffix++) {
-            $slug = "{$base}-{$suffix}";
-        }
-
-        return $slug;
+        return $this->slugs->resolve(
+            $data,
+            $category?->slug,
+            fn (string $slug) => $this->categories->slugExists($slug, $category?->id),
+            'category',
+        );
     }
 
     /**

@@ -141,15 +141,4 @@ async function submit() {
 .alert-error {
   margin-bottom: 1rem;
 }
-
-textarea {
-  resize: vertical;
-}
-
-.checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
 </style>
