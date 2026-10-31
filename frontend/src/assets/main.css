@@ -1,5 +1,17 @@
 @import './base.css';
 
+:root {
+  --color-danger: hsl(0, 70%, 45%);
+  --color-success: hsl(160, 100%, 27%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-danger: hsl(0, 80%, 72%);
+    --color-success: hsl(160, 70%, 50%);
+  }
+}
+
 #app {
   font-weight: normal;
 }
@@ -16,4 +28,120 @@ a,
   a:hover {
     background-color: hsla(160, 100%, 37%, 0.2);
   }
+}
+
+/* Shared building blocks for the admin screens */
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-text);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-hover);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  font-weight: 600;
+  color: var(--vt-c-white);
+  background: hsla(160, 100%, 32%, 1);
+  border-color: transparent;
+}
+
+.btn-danger {
+  font-weight: 600;
+  color: var(--vt-c-white);
+  background: hsl(0, 65%, 45%);
+  border-color: transparent;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.field .hint {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.field-error {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-danger);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-hover);
+  border-radius: 6px;
+}
+
+.input:focus {
+  outline: 2px solid hsla(160, 100%, 37%, 0.6);
+  outline-offset: 1px;
+}
+
+.alert-error {
+  padding: 0.6rem 0.75rem;
+  color: var(--color-danger);
+  background: hsla(0, 70%, 50%, 0.1);
+  border: 1px solid hsla(0, 70%, 50%, 0.4);
+  border-radius: 6px;
+}
+
+/* base.css resets every margin, which would pin a modal dialog to the corner. */
+.dialog {
+  width: min(480px, calc(100vw - 2rem));
+  margin: auto;
+  padding: 1.5rem;
+  color: var(--color-text);
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
 }

@@ -45,5 +45,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, user, isAuthenticated, login, restoreSession, logout }
+  // For endpoints that need the admin's token. A token the server rejects ends the session.
+  async function request(path, options = {}) {
+    try {
+      return await apiRequest(path, { ...options, token: token.value })
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+      }
+
+      throw error
+    }
+  }
+
+  return { token, user, isAuthenticated, login, restoreSession, logout, request }
 })

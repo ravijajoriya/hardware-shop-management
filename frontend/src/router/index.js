@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AdminLayout from '../layouts/AdminLayout.vue'
+import CategoriesView from '../views/CategoriesView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 
@@ -8,9 +10,20 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'dashboard',
-      component: DashboardView,
+      component: AdminLayout,
       meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: DashboardView,
+        },
+        {
+          path: 'categories',
+          name: 'categories',
+          component: CategoriesView,
+        },
+      ],
     },
     {
       path: '/login',

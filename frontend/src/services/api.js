@@ -1,10 +1,12 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 export class ApiError extends Error {
-  constructor(message, status) {
+  // `errors` holds the per-field messages of a validation failure: { field: [message, ...] }.
+  constructor(message, status, errors = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.errors = errors
   }
 }
 
@@ -32,7 +34,11 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
   const data = response.status === 204 ? null : await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new ApiError(data?.message ?? 'Something went wrong. Please try again.', response.status)
+    throw new ApiError(
+      data?.message ?? 'Something went wrong. Please try again.',
+      response.status,
+      data?.errors,
+    )
   }
 
   return data

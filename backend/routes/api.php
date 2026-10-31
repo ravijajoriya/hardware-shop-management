@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -14,5 +15,7 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+
+        Route::apiResource('categories', CategoryController::class);
     });
 });
