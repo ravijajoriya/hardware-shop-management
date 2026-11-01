@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { useBrandStore } from '@/stores/brands'
+import FieldLabel from '@/components/FieldLabel.vue'
 
 const props = defineProps({
   // The brand to edit, or null to create a new one.
@@ -85,7 +86,7 @@ async function submit() {
       </div>
 
       <div class="field">
-        <label for="brand-slug">Slug</label>
+        <FieldLabel input-id="brand-slug" term="Slug">Slug</FieldLabel>
         <input id="brand-slug" v-model="form.slug" class="input" type="text" maxlength="255" />
         <p v-if="fieldErrors.slug" class="field-error">{{ fieldErrors.slug[0] }}</p>
         <p v-else class="hint">Leave blank to create it from the name.</p>

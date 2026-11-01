@@ -45,6 +45,16 @@ class Category extends Model
     }
 
     /**
+     * The products filed directly under this category.
+     *
+     * @return HasMany<Product, $this>
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

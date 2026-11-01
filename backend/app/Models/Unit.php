@@ -6,6 +6,7 @@ use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'short_name', 'allow_decimal', 'is_active'])]
 class Unit extends Model
@@ -22,6 +23,14 @@ class Unit extends Model
         'allow_decimal' => false,
         'is_active' => true,
     ];
+
+    /**
+     * @return HasMany<Product, $this>
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
 
     /**
      * Get the attributes that should be cast.

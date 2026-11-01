@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Category;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -243,5 +244,20 @@ class CategoryTest extends TestCase
             ->assertJsonValidationErrors(['category']);
 
         $this->assertDatabaseHas('categories', ['id' => $parent->id]);
+    }
+
+    public function test_a_category_with_products_cannot_be_deleted(): void
+    {
+        $this->actingAsAdmin();
+        $category = Category::factory()->create();
+        Product::factory()->create(['category_id' => $category->id]);
+
+        $this->deleteJson("/api/admin/categories/{$category->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'category' => 'Move the products in this category to another category before deleting it.',
+            ]);
+
+        $this->assertDatabaseHas('categories', ['id' => $category->id]);
     }
 }
