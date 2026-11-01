@@ -19,6 +19,10 @@ const form = {
   description: '  ',
   hsn_code: '8205',
   gst_rate: '',
+  location_area: 'shop',
+  location_floor: 0,
+  location_rack: ' b ',
+  location_shelf: '',
   is_active: true,
 }
 
@@ -57,6 +61,10 @@ describe('productPayload', () => {
       description: null,
       hsn_code: '8205',
       gst_rate: null,
+      location_area: 'shop',
+      location_floor: 0,
+      location_rack: 'B',
+      location_shelf: null,
       is_active: true,
       variants: [
         {

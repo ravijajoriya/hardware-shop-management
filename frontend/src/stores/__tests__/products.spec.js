@@ -52,6 +52,16 @@ describe('product store', () => {
     expect(store.options).toEqual(options)
   })
 
+  it('finds products without touching the list', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { data: [product], meta: {}, summary: {} }))
+    const store = useProductStore()
+
+    expect(await store.find('SHOP-GF-R3')).toEqual([product])
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/admin\/products\?search=SHOP-GF-R3&per_page=8$/)
+    expect(store.products).toEqual([])
+  })
+
   it('creates and updates products as JSON', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(201, { data: product }))
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: { ...product, name: 'Hammer' } }))

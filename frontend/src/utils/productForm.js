@@ -43,6 +43,10 @@ export function productPayload(form, rows) {
     description: blankToNull(form.description),
     hsn_code: blankToNull(form.hsn_code),
     gst_rate: numberOrNull(form.gst_rate),
+    location_area: form.location_area,
+    location_floor: numberOrNull(form.location_floor),
+    location_rack: blankToNull(form.location_rack)?.toUpperCase() ?? null,
+    location_shelf: numberOrNull(form.location_shelf),
     is_active: form.is_active,
     variants: rows.map((row) => {
       const variant = {

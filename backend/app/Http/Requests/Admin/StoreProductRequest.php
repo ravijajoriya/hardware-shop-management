@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\StorageArea;
+use App\Services\ProductLocationService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,6 +45,13 @@ class StoreProductRequest extends FormRequest
             'gst_rate' => ['nullable', 'numeric', 'min:0', 'max:100', 'decimal:0,2'],
             'is_active' => ['boolean'],
 
+            // Where it is kept. Each part needs the one before it: no shelf without a rack,
+            // no rack without a floor. The backend turns these into the location code.
+            'location_area' => ['required', Rule::enum(StorageArea::class)],
+            'location_floor' => ['nullable', 'integer', 'min:0', 'max:'.ProductLocationService::MAX_FLOOR, 'required_with:location_rack'],
+            'location_rack' => ['nullable', 'string', 'regex:/^[A-Z0-9]{1,4}$/', 'required_with:location_shelf'],
+            'location_shelf' => ['nullable', 'integer', 'min:1', 'max:'.ProductLocationService::MAX_SHELF],
+
             'variants' => ['required', 'array', 'min:1', 'max:50'],
             'variants.*' => ['array'],
             'variants.*.id' => $this->variantIdRules(),
@@ -73,6 +82,10 @@ class StoreProductRequest extends FormRequest
             'unit_id' => 'unit',
             'hsn_code' => 'HSN code',
             'gst_rate' => 'GST rate',
+            'location_area' => 'shop or godown',
+            'location_floor' => 'floor',
+            'location_rack' => 'rack',
+            'location_shelf' => 'shelf',
             'variants.*.name' => 'variant name',
             'variants.*.sku' => 'SKU',
             'variants.*.purchase_price' => 'purchase price',
@@ -94,6 +107,11 @@ class StoreProductRequest extends FormRequest
             'new_brand_name.unique' => 'This brand already exists. Choose it from the brand list.',
             'new_brand_name.prohibits' => 'Choose a brand from the list or type a new one, not both.',
             'hsn_code.regex' => 'The HSN code must be 4, 6 or 8 digits.',
+            'location_area.required' => 'Choose whether it is kept in the shop or the godown.',
+            'location_area.enum' => 'Choose whether it is kept in the shop or the godown.',
+            'location_floor.required_with' => 'Choose the floor this rack is on.',
+            'location_rack.required_with' => 'Enter the rack this shelf is in.',
+            'location_rack.regex' => 'Use up to 4 letters or numbers for the rack, such as 3 or A.',
             'variants.required' => 'Add at least one variant with its prices and stock.',
             'variants.min' => 'Add at least one variant with its prices and stock.',
             'variants.*.name.required' => 'Give each variant a name, such as its size or colour.',
@@ -101,6 +119,17 @@ class StoreProductRequest extends FormRequest
             'variants.*.sku.distinct' => 'Each variant needs a different SKU.',
             'variants.*.mrp.gte' => 'The MRP cannot be lower than the selling price.',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Racks may be labelled with letters as well as numbers; "a" and "A" are the same rack.
+        if (is_string($this->input('location_rack'))) {
+            $this->merge(['location_rack' => strtoupper(trim($this->input('location_rack')))]);
+        }
     }
 
     protected function uniqueSlugRule(): Unique

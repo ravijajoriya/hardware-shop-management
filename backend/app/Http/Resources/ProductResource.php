@@ -37,6 +37,14 @@ class ProductResource extends JsonResource
                 'short_name' => $this->unit->short_name,
                 'allow_decimal' => $this->unit->allow_decimal,
             ]),
+            // Where it is kept; "code" is built by the backend, such as SHOP-GF-R3-S2.
+            'location' => [
+                'area' => $this->location_area->value,
+                'floor' => $this->location_floor,
+                'rack' => $this->location_rack,
+                'shelf' => $this->location_shelf,
+                'code' => $this->location_code,
+            ],
             'hsn_code' => $this->hsn_code,
             'gst_rate' => $this->gst_rate === null ? null : (float) $this->gst_rate,
             // The main image, for thumbnails; "images" holds them all in order.

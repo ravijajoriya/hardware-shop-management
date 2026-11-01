@@ -137,6 +137,7 @@ class ProductRepository
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $query->where(function (Builder $query) use ($search) {
                     $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('location_code', 'like', "%{$search}%")
                         ->orWhereHas('variants', fn (Builder $variants) => $variants->where('sku', 'like', "%{$search}%"));
                 });
             })
