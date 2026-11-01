@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StorageArea;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,11 +12,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
+ * @property StorageArea $location_area
  * @property-read ProductImage|null $mainImage
  */
 #[Fillable([
     'category_id', 'brand_id', 'unit_id', 'name', 'slug', 'description',
     'hsn_code', 'gst_rate', 'is_active',
+    'location_area', 'location_floor', 'location_rack', 'location_shelf', 'location_code',
 ])]
 class Product extends Model
 {
@@ -29,6 +32,8 @@ class Product extends Model
      */
     protected $attributes = [
         'is_active' => true,
+        'location_area' => 'shop',
+        'location_code' => 'SHOP',
     ];
 
     /**
@@ -119,6 +124,9 @@ class Product extends Model
         return [
             'gst_rate' => 'decimal:2',
             'is_active' => 'boolean',
+            'location_area' => StorageArea::class,
+            'location_floor' => 'integer',
+            'location_shelf' => 'integer',
         ];
     }
 }

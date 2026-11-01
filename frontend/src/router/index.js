@@ -5,6 +5,7 @@ import BrandsView from '../views/BrandsView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
+import ProductDetailView from '../views/ProductDetailView.vue'
 import ProductFormView from '../views/ProductFormView.vue'
 import ProductsView from '../views/ProductsView.vue'
 
@@ -31,6 +32,13 @@ const router = createRouter({
           path: 'products/new',
           name: 'product-create',
           component: ProductFormView,
+          meta: { section: 'products' },
+        },
+        {
+          path: 'products/:id',
+          name: 'product-show',
+          component: ProductDetailView,
+          props: true,
           meta: { section: 'products' },
         },
         {

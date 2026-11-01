@@ -39,6 +39,14 @@ export const useProductStore = defineStore('products', () => {
     options.value = data
   }
 
+  // A quick search that leaves the products list as it is, for "Where is it?".
+  async function find(term, limit = 8) {
+    const query = new URLSearchParams({ search: term, per_page: limit })
+    const { data } = await auth.request(`/admin/products?${query}`)
+
+    return data
+  }
+
   async function fetchOne(id) {
     const { data } = await auth.request(`/admin/products/${id}`)
 
@@ -100,6 +108,7 @@ export const useProductStore = defineStore('products', () => {
     options,
     fetchPage,
     fetchOptions,
+    find,
     fetchOne,
     create,
     update,

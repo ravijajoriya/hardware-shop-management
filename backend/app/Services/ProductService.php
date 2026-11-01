@@ -22,6 +22,7 @@ class ProductService
         private readonly CategoryService $categories,
         private readonly BrandService $brands,
         private readonly UnitRepository $units,
+        private readonly ProductLocationService $locations,
         private readonly SlugService $slugs,
     ) {}
 
@@ -72,6 +73,7 @@ class ProductService
         $this->ensureWholeQuantities($data);
 
         $data['slug'] = $this->resolveSlug($data);
+        $data = $this->locations->withCode($data);
 
         return DB::transaction(function () use ($data) {
             $data = $this->withNewBrand($data);
@@ -92,6 +94,7 @@ class ProductService
         $this->ensureWholeQuantities($data);
 
         $data['slug'] = $this->resolveSlug($data, $product);
+        $data = $this->locations->withCode($data);
 
         return DB::transaction(function () use ($product, $data) {
             $data = $this->withNewBrand($data);

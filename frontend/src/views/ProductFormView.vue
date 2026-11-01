@@ -10,7 +10,16 @@ import {
   savedImageItem,
   variantRow,
 } from '@/utils/productForm'
+import {
+  AREAS,
+  MAX_FLOOR,
+  MAX_SHELF,
+  floorName,
+  locationCode,
+  locationLabel,
+} from '@/utils/location'
 import FieldLabel from '@/components/FieldLabel.vue'
+import InfoTip from '@/components/InfoTip.vue'
 import ProductImagesField from '@/components/ProductImagesField.vue'
 import ProductVariantsEditor from '@/components/ProductVariantsEditor.vue'
 
@@ -42,9 +51,42 @@ const form = reactive({
   description: '',
   hsn_code: '',
   gst_rate: '',
+  // Where it is kept; only shop or godown is required.
+  location_area: 'shop',
+  location_floor: '',
+  location_rack: '',
+  location_shelf: '',
   is_active: true,
 })
 const variants = ref([variantRow()])
+
+const floors = Array.from({ length: MAX_FLOOR + 1 }, (_, floor) => floor)
+
+const place = computed(() => ({
+  area: form.location_area,
+  floor: form.location_floor,
+  rack: form.location_rack,
+  shelf: form.location_shelf,
+}))
+
+// A rack sits on a floor and a shelf in a rack, so clearing one part clears the parts inside it.
+watch(
+  () => form.location_floor,
+  (floor) => {
+    if (floor === '') {
+      form.location_rack = ''
+    }
+  },
+)
+
+watch(
+  () => form.location_rack,
+  (rack) => {
+    if (!String(rack).trim()) {
+      form.location_shelf = ''
+    }
+  },
+)
 
 // The images as last saved, and the list being edited (saved ones plus newly chosen files).
 const savedImages = ref([])
@@ -93,6 +135,10 @@ function fill(product) {
     description: product.description ?? '',
     hsn_code: product.hsn_code ?? '',
     gst_rate: product.gst_rate ?? '',
+    location_area: product.location.area,
+    location_floor: product.location.floor ?? '',
+    location_rack: product.location.rack ?? '',
+    location_shelf: product.location.shelf ?? '',
     is_active: product.is_active,
   })
 
@@ -318,6 +364,81 @@ onMounted(load)
     </section>
 
     <section class="form-section">
+      <h2>Where it is kept</h2>
+
+      <fieldset class="area">
+        <legend>Shop or godown</legend>
+        <label v-for="option in AREAS" :key="option.value" class="area-option">
+          <input
+            v-model="form.location_area"
+            type="radio"
+            name="location_area"
+            :value="option.value"
+          />
+          {{ option.label }}
+        </label>
+      </fieldset>
+      <p v-if="errorFor('location_area')" class="field-error">{{ errorFor('location_area') }}</p>
+
+      <div class="grid place-grid">
+        <div class="field">
+          <label for="product-floor">Floor</label>
+          <select id="product-floor" v-model="form.location_floor" class="input">
+            <option value="">Not set</option>
+            <option v-for="floor in floors" :key="floor" :value="floor">
+              {{ floorName(floor) }}
+            </option>
+          </select>
+          <p v-if="errorFor('location_floor')" class="field-error">
+            {{ errorFor('location_floor') }}
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="product-rack">Rack</label>
+          <input
+            id="product-rack"
+            v-model="form.location_rack"
+            class="input rack"
+            type="text"
+            maxlength="4"
+            placeholder="e.g. 3 or A"
+            :disabled="form.location_floor === ''"
+          />
+          <p v-if="errorFor('location_rack')" class="field-error">
+            {{ errorFor('location_rack') }}
+          </p>
+          <p v-else-if="form.location_floor === ''" class="hint">Choose the floor first.</p>
+        </div>
+
+        <div class="field">
+          <label for="product-shelf">Shelf</label>
+          <input
+            id="product-shelf"
+            v-model="form.location_shelf"
+            class="input"
+            type="number"
+            min="1"
+            :max="MAX_SHELF"
+            placeholder="e.g. 2"
+            :disabled="!String(form.location_rack).trim()"
+          />
+          <p v-if="errorFor('location_shelf')" class="field-error">
+            {{ errorFor('location_shelf') }}
+          </p>
+          <p v-else-if="!String(form.location_rack).trim()" class="hint">Enter the rack first.</p>
+        </div>
+      </div>
+
+      <div class="code-preview">
+        <span class="code-heading">Location code <InfoTip term="Location code" /></span>
+        <strong class="code">{{ locationCode(place) }}</strong>
+        <span class="code-words">{{ locationLabel(place) }}</span>
+      </div>
+      <p class="hint">Write this code on the rack, so anyone can find the item.</p>
+    </section>
+
+    <section class="form-section">
       <h2>Tax <span class="optional">optional</span></h2>
 
       <div class="grid">
@@ -424,6 +545,89 @@ onMounted(load)
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.area legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-weight: 500;
+}
+
+.area-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-hover);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.area-option:has(input:checked) {
+  font-weight: 600;
+  color: var(--color-heading);
+  border-color: hsla(160, 100%, 37%, 1);
+  box-shadow: inset 0 0 0 1px hsla(160, 100%, 37%, 1);
+}
+
+.place-grid {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.rack {
+  text-transform: uppercase;
+}
+
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.code-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-background);
+  border: 1px dashed var(--color-border-hover);
+  border-radius: 6px;
+}
+
+.code-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  letter-spacing: 0.03em;
+}
+
+.code-words {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.code-preview + .hint {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  opacity: 0.8;
 }
 
 .link-button {

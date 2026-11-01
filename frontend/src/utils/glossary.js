@@ -21,6 +21,11 @@ export const glossary = {
     meaning:
       'The tax charged when you sell. Enter the rate that applies to this product, such as 18. Leave it blank if no GST applies.',
   },
+  'Location code': {
+    full: null,
+    meaning:
+      'Where the item is kept, written short: SHOP or GODOWN, then the floor (GF = ground floor, 1F = 1st floor), then R and the rack, then S and the shelf. SHOP-GF-R3-S2 means shop, ground floor, rack 3, shelf 2.',
+  },
   Slug: {
     full: null,
     meaning:

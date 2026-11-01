@@ -37,6 +37,7 @@ class ProductTest extends TestCase
             'description' => 'Weatherproof wall paint.',
             'hsn_code' => '3209',
             'gst_rate' => 18,
+            'location_area' => 'shop',
             'is_active' => true,
             'variants' => [
                 ['name' => '1 L', 'sku' => 'APX-1L', 'purchase_price' => 300, 'selling_price' => 360, 'mrp' => 399, 'stock_quantity' => 10],
@@ -191,6 +192,95 @@ class ProductTest extends TestCase
 
         $this->assertDatabaseMissing('brands', ['name' => 'Bosch']);
         $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_where_a_product_is_kept_becomes_a_location_code(): void
+    {
+        $this->actingAsAdmin();
+
+        $created = $this->postJson('/api/admin/products', $this->payload([
+            'location_area' => 'godown',
+            'location_floor' => 1,
+            'location_rack' => 'b2',
+            'location_shelf' => 4,
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('data.location', [
+                'area' => 'godown',
+                'floor' => 1,
+                'rack' => 'B2',
+                'shelf' => 4,
+                'code' => 'GODOWN-1F-RB2-S4',
+            ])
+            ->json('data');
+
+        $this->assertDatabaseHas('products', ['id' => $created['id'], 'location_code' => 'GODOWN-1F-RB2-S4']);
+
+        // Moved to the shop's ground floor, off any rack: the old rack and shelf are cleared.
+        $this->putJson("/api/admin/products/{$created['id']}", $this->payload([
+            'location_area' => 'shop',
+            'location_floor' => 0,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.location', [
+                'area' => 'shop',
+                'floor' => 0,
+                'rack' => null,
+                'shelf' => null,
+                'code' => 'SHOP-GF',
+            ]);
+    }
+
+    public function test_each_location_part_needs_the_one_before_it(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/products', $this->payload(['location_area' => null]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['location_area' => 'Choose whether it is kept in the shop or the godown.']);
+
+        $this->postJson('/api/admin/products', $this->payload(['location_area' => 'basement']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['location_area']);
+
+        $this->postJson('/api/admin/products', $this->payload(['location_shelf' => 2]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['location_rack' => 'Enter the rack this shelf is in.']);
+
+        $this->postJson('/api/admin/products', $this->payload(['location_rack' => '3']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['location_floor' => 'Choose the floor this rack is on.']);
+
+        $this->postJson('/api/admin/products', $this->payload([
+            'location_floor' => 21,
+            'location_rack' => 'A-1',
+            'location_shelf' => 0,
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'location_floor',
+                'location_rack' => 'Use up to 4 letters or numbers for the rack, such as 3 or A.',
+                'location_shelf',
+            ]);
+
+        $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_products_can_be_found_by_their_location_code(): void
+    {
+        $this->actingAsAdmin();
+        $this->productWithVariant(['name' => 'Claw Hammer', 'location_code' => 'SHOP-GF-R3-S2']);
+        $this->productWithVariant(['name' => 'Cement Bag', 'location_area' => 'godown', 'location_code' => 'GODOWN-GF']);
+
+        $this->getJson('/api/admin/products?search=GF-R3')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Claw Hammer')
+            ->assertJsonPath('data.0.location.code', 'SHOP-GF-R3-S2');
+
+        $this->getJson('/api/admin/products?search=godown')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Cement Bag');
     }
 
     public function test_creating_a_product_validates_the_input(): void

@@ -3,7 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/products'
 import { formatMoney, formatQuantity } from '@/utils/format'
+import { locationLabel } from '@/utils/location'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import InfoTip from '@/components/InfoTip.vue'
 
 const store = useProductStore()
 const route = useRoute()
@@ -217,16 +219,16 @@ async function confirmDelete() {
           <tr>
             <th scope="col">Product</th>
             <th scope="col">Category</th>
+            <th scope="col">Location <InfoTip term="Location code" /></th>
             <th scope="col" class="num">Stock</th>
-            <th scope="col" class="num">Worth at cost</th>
-            <th scope="col" class="num">Worth at selling price</th>
+            <th scope="col" class="num">Stock worth</th>
             <th scope="col">Status</th>
             <th scope="col" class="actions">Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="product in store.products" :key="product.id">
-            <td>
+            <td class="product-cell">
               <div class="product">
                 <img v-if="product.image_url" :src="product.image_url" alt="" class="thumb" />
                 <span v-else class="thumb" aria-hidden="true"></span>
@@ -239,9 +241,14 @@ async function confirmDelete() {
               </div>
             </td>
             <td>{{ product.category.name }}</td>
+            <td class="mono" :title="locationLabel(product.location)">
+              {{ product.location.code }}
+            </td>
             <td class="num">{{ formatQuantity(product.stock_quantity, product.unit) }}</td>
-            <td class="num">{{ formatMoney(product.stock_value.cost) }}</td>
-            <td class="num">{{ formatMoney(product.stock_value.selling) }}</td>
+            <td class="num">
+              <div>{{ formatMoney(product.stock_value.cost) }}</div>
+              <div class="sells-for">sells for {{ formatMoney(product.stock_value.selling) }}</div>
+            </td>
             <td>
               <span class="badge" :class="{ 'badge-active': product.is_active }">
                 {{ product.is_active ? 'Active' : 'Inactive' }}
@@ -375,6 +382,17 @@ async function confirmDelete() {
 
 .name {
   color: var(--color-heading);
+}
+
+/* Long product names wrap, so the other columns keep their room. */
+.data-table td.product-cell {
+  min-width: 16rem;
+  white-space: normal;
+}
+
+.sells-for {
+  font-size: 0.85rem;
+  opacity: 0.75;
 }
 
 .details {

@@ -32,6 +32,11 @@ class ProductFactory extends Factory
             'description' => fake()->sentence(),
             'hsn_code' => null,
             'gst_rate' => null,
+            'location_area' => 'shop',
+            'location_floor' => null,
+            'location_rack' => null,
+            'location_shelf' => null,
+            'location_code' => 'SHOP',
             'is_active' => true,
         ];
     }
