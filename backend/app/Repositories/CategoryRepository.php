@@ -32,6 +32,11 @@ class CategoryRepository
         return $category->children()->exists();
     }
 
+    public function hasProducts(Category $category): bool
+    {
+        return $category->products()->exists();
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

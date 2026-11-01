@@ -22,6 +22,11 @@ class BrandRepository
             ->exists();
     }
 
+    public function hasProducts(Brand $brand): bool
+    {
+        return $brand->products()->exists();
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */

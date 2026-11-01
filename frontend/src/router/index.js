@@ -5,6 +5,8 @@ import BrandsView from '../views/BrandsView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
+import ProductFormView from '../views/ProductFormView.vue'
+import ProductsView from '../views/ProductsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,6 +20,25 @@ const router = createRouter({
           path: '',
           name: 'dashboard',
           component: DashboardView,
+        },
+        {
+          path: 'products',
+          name: 'products',
+          component: ProductsView,
+          meta: { section: 'products' },
+        },
+        {
+          path: 'products/new',
+          name: 'product-create',
+          component: ProductFormView,
+          meta: { section: 'products' },
+        },
+        {
+          path: 'products/:id/edit',
+          name: 'product-edit',
+          component: ProductFormView,
+          props: true,
+          meta: { section: 'products' },
         },
         {
           path: 'categories',

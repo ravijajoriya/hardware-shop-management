@@ -23,6 +23,52 @@ class CategoryService
     }
 
     /**
+     * Every category in tree order, each parent followed by its subcategories,
+     * with a "depth" attribute (0 for top-level categories).
+     *
+     * @return Collection<int, Category>
+     */
+    public function tree(): Collection
+    {
+        $childrenOf = $this->categories->all()->groupBy(fn (Category $category) => $category->parent_id ?? 0);
+        $ordered = new Collection;
+
+        $visit = function (int $parentId, int $depth) use (&$visit, $childrenOf, $ordered): void {
+            foreach ($childrenOf->get($parentId, []) as $category) {
+                $ordered->push($category->setAttribute('depth', $depth));
+                $visit($category->id, $depth + 1);
+            }
+        };
+
+        $visit(0, 0);
+
+        return $ordered;
+    }
+
+    /**
+     * The given category's id plus the ids of every category beneath it.
+     *
+     * @return list<int>
+     */
+    public function branchIds(int $categoryId): array
+    {
+        $childrenOf = $this->categories->all()->groupBy(fn (Category $category) => $category->parent_id ?? 0);
+        $ids = [];
+        $pending = [$categoryId];
+
+        while ($pending) {
+            $id = array_pop($pending);
+            $ids[] = $id;
+
+            foreach ($childrenOf->get($id, []) as $child) {
+                $pending[] = $child->id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function create(array $data): Category
@@ -54,6 +100,12 @@ class CategoryService
         if ($this->categories->hasChildren($category)) {
             throw ValidationException::withMessages([
                 'category' => ['Move or delete the subcategories of this category before deleting it.'],
+            ]);
+        }
+
+        if ($this->categories->hasProducts($category)) {
+            throw ValidationException::withMessages([
+                'category' => ['Move the products in this category to another category before deleting it.'],
             ]);
         }
 

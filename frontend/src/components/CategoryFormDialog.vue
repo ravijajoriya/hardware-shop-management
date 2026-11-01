@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useCategoryStore } from '@/stores/categories'
+import FieldLabel from '@/components/FieldLabel.vue'
 
 const props = defineProps({
   // The category to edit, or null to create a new one.
@@ -93,7 +94,7 @@ async function submit() {
       </div>
 
       <div class="field">
-        <label for="category-slug">Slug</label>
+        <FieldLabel input-id="category-slug" term="Slug">Slug</FieldLabel>
         <input id="category-slug" v-model="form.slug" class="input" type="text" maxlength="255" />
         <p v-if="fieldErrors.slug" class="field-error">{{ fieldErrors.slug[0] }}</p>
         <p v-else class="hint">Leave blank to create it from the name.</p>

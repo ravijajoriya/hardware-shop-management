@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Brand;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -204,5 +205,20 @@ class BrandTest extends TestCase
         $this->deleteJson("/api/admin/brands/{$brand->id}")->assertNoContent();
 
         $this->assertDatabaseMissing('brands', ['id' => $brand->id]);
+    }
+
+    public function test_a_brand_used_by_products_cannot_be_deleted(): void
+    {
+        $this->actingAsAdmin();
+        $brand = Brand::factory()->create();
+        Product::factory()->create(['brand_id' => $brand->id]);
+
+        $this->deleteJson("/api/admin/brands/{$brand->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'brand' => 'Change the brand of the products that use it before deleting it.',
+            ]);
+
+        $this->assertDatabaseHas('brands', ['id' => $brand->id]);
     }
 }

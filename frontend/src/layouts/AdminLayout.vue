@@ -1,9 +1,10 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
 
 const loggingOut = ref(false)
@@ -32,6 +33,12 @@ async function logout() {
 
       <nav class="nav" aria-label="Main">
         <RouterLink :to="{ name: 'dashboard' }">Dashboard</RouterLink>
+        <RouterLink
+          :to="{ name: 'products' }"
+          :class="{ active: route.meta.section === 'products' }"
+        >
+          Products
+        </RouterLink>
         <RouterLink :to="{ name: 'categories' }">Categories</RouterLink>
         <RouterLink :to="{ name: 'brands' }">Brands</RouterLink>
       </nav>
@@ -68,6 +75,7 @@ async function logout() {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
 }
 
@@ -77,7 +85,9 @@ async function logout() {
   border-radius: 6px;
 }
 
-.nav a.router-link-exact-active {
+/* "active" also marks Products while on the product form. */
+.nav a.router-link-exact-active,
+.nav a.active {
   font-weight: 600;
   color: var(--color-heading);
   background: var(--color-background-mute);

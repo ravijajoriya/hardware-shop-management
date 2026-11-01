@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Brand;
 use App\Repositories\BrandRepository;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\ValidationException;
 
 class BrandService
 {
@@ -41,8 +42,17 @@ class BrandService
         return $this->brands->update($brand, $data);
     }
 
+    /**
+     * @throws ValidationException
+     */
     public function delete(Brand $brand): void
     {
+        if ($this->brands->hasProducts($brand)) {
+            throw ValidationException::withMessages([
+                'brand' => ['Change the brand of the products that use it before deleting it.'],
+            ]);
+        }
+
         $this->brands->delete($brand);
     }
 

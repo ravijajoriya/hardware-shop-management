@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useCategoryStore } from '@/stores/categories'
 import CategoryFormDialog from '@/components/CategoryFormDialog.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import InfoTip from '@/components/InfoTip.vue'
 
 const store = useCategoryStore()
 
@@ -73,7 +74,7 @@ onMounted(load)
       <thead>
         <tr>
           <th scope="col">Name</th>
-          <th scope="col">Slug</th>
+          <th scope="col">Slug <InfoTip term="Slug" /></th>
           <th scope="col">Status</th>
           <th scope="col" class="actions">Actions</th>
         </tr>

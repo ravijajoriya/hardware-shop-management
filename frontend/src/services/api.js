@@ -14,7 +14,10 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
   const headers = { Accept: 'application/json' }
   const options = { method, headers }
 
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    // The browser sets the multipart Content-Type itself, boundary included.
+    options.body = body
+  } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
     options.body = JSON.stringify(body)
   }
