@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Repositories\CustomerRepository;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // {customer} in a route only matches users who are customers, never an admin.
+        Route::bind('customer', fn (string $value) => $this->app->make(CustomerRepository::class)->findOrFail((int) $value));
     }
 }

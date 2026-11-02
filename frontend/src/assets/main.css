@@ -3,12 +3,14 @@
 :root {
   --color-danger: hsl(0, 70%, 45%);
   --color-success: hsl(160, 100%, 27%);
+  --color-warning: hsl(35, 100%, 33%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --color-danger: hsl(0, 80%, 72%);
     --color-success: hsl(160, 70%, 50%);
+    --color-warning: hsl(40, 90%, 60%);
   }
 }
 
@@ -205,12 +207,100 @@ textarea.input {
   border-color: currentColor;
 }
 
+.badge-warning {
+  color: var(--color-warning);
+  border-color: currentColor;
+}
+
+.badge-danger {
+  color: var(--color-danger);
+  border-color: currentColor;
+}
+
 .alert-error {
   padding: 0.6rem 0.75rem;
   color: var(--color-danger);
   background: hsla(0, 70%, 50%, 0.1);
   border: 1px solid hsla(0, 70%, 50%, 0.4);
   border-radius: 6px;
+}
+
+.alert-success {
+  padding: 0.6rem 0.75rem;
+  color: var(--color-success);
+  background: hsla(160, 100%, 37%, 0.1);
+  border: 1px solid hsla(160, 100%, 37%, 0.4);
+  border-radius: 6px;
+}
+
+/* Summary figures shown as cards, such as stock worth or today's sales. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.stat-note {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+/* A radio button drawn as a selectable box, for a few choices side by side. */
+.choice-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.choice-group legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-weight: 500;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-hover);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  font-weight: 600;
+  color: var(--color-heading);
+  border-color: hsla(160, 100%, 37%, 1);
+  box-shadow: inset 0 0 0 1px hsla(160, 100%, 37%, 1);
 }
 
 /* base.css resets every margin, which would pin a modal dialog to the corner. */
@@ -240,4 +330,32 @@ textarea.input {
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1.5rem;
+}
+
+/* Printing (bills): only the page itself, in black on white whatever the screen theme. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  :root {
+    --color-background: #fff;
+    --color-background-soft: #fff;
+    --color-background-mute: #fff;
+    --color-border: #bbb;
+    --color-border-hover: #888;
+    --color-heading: #000;
+    --color-text: #000;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    transition: none;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }

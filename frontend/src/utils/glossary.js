@@ -31,4 +31,29 @@ export const glossary = {
     meaning:
       'The name written for web links, in small letters with dashes, such as asian-paints. Leave it blank and it is made from the name.',
   },
+  UPI: {
+    full: 'Unified Payments Interface',
+    meaning:
+      'A payment from a phone app such as Google Pay, PhonePe or Paytm, made by scanning your QR code or paying to your UPI ID.',
+  },
+  Due: {
+    full: 'Udhaar',
+    meaning:
+      'The part of a bill the customer has not paid yet. It stays on their account until they pay it, and their oldest bill is cleared first.',
+  },
+  'Bill number': {
+    full: null,
+    meaning:
+      'Every bill gets the next number for the year. INV-2026-0001 is the first bill of 2026; INV is short for invoice.',
+  },
+  'Transaction number': {
+    full: null,
+    meaning:
+      'The reference number the payment app or bank shows for a UPI or bank payment, usually 12 digits. Optional, but it helps you match the payment in your bank statement.',
+  },
+  'List price': {
+    full: null,
+    meaning:
+      'The selling price saved on the product. You can charge a different price on this bill; the product’s own price stays the same.',
+  },
 }

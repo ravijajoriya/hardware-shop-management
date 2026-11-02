@@ -312,38 +312,6 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 1rem 1.25rem;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-}
-
-.stat-value {
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.stat-note {
-  font-size: 0.85rem;
-  opacity: 0.8;
-}
-
 .filters {
   display: flex;
   flex-wrap: wrap;

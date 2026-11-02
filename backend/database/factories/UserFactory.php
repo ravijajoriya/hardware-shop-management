@@ -44,6 +44,20 @@ class UserFactory extends Factory
     }
 
     /**
+     * A shop customer: a name and mobile number, no email or password.
+     */
+    public function customer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email' => null,
+            'email_verified_at' => null,
+            'password' => null,
+            'remember_token' => null,
+            'mobile' => fake()->unique()->numerify('9#########'),
+        ]);
+    }
+
+    /**
      * Indicate that the user is an admin.
      */
     public function admin(): static
