@@ -6,13 +6,16 @@ import { formatDateTime, formatMoney } from '@/utils/format'
 import {
   billCaption,
   billMessage,
+  billPaymentReceiptMessage,
   formatMobile,
   itemQuantity,
+  methodLabel,
   statusClass,
   whatsappLink,
 } from '@/utils/billing'
 import { canShareFile, downloadFile } from '@/utils/files'
 import InfoTip from '@/components/InfoTip.vue'
+import ReceivePaymentDialog from '@/components/ReceivePaymentDialog.vue'
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -49,6 +52,27 @@ const shareError = ref('')
 let latestPdf = 0
 
 const canShare = computed(() => pdf.value !== null && canShareFile(pdf.value))
+
+const receiving = ref(false)
+// The last payment taken on this page.
+const received = ref(null)
+
+const receiptLink = computed(() =>
+  whatsappLink(
+    bill.value.customer.mobile,
+    billPaymentReceiptMessage(bill.value, received.value, shop.value),
+  ),
+)
+
+function onReceived(result) {
+  bill.value = result.bill
+  shop.value = result.shop
+  received.value = result.payment
+  receiving.value = false
+  justSaved.value = false
+  // The PDF shows what has been paid, so it is made again.
+  preparePdf()
+}
 
 async function load() {
   loading.value = true
@@ -114,7 +138,14 @@ function print() {
   window.print()
 }
 
-watch(() => props.id, load, { immediate: true })
+watch(
+  () => props.id,
+  () => {
+    received.value = null
+    load()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -128,6 +159,9 @@ watch(() => props.id, load, { immediate: true })
       <!-- Only where the device can hand files to other apps, such as phones. -->
       <button v-if="canShare" type="button" class="btn" @click="sharePdf">Share PDF</button>
       <a class="btn" :href="whatsapp" target="_blank" rel="noopener">Send on WhatsApp</a>
+      <button v-if="bill.due_amount > 0" type="button" class="btn" @click="receiving = true">
+        Receive payment
+      </button>
       <RouterLink class="btn btn-primary" :to="{ name: 'bill-create' }">New bill</RouterLink>
     </div>
   </div>
@@ -140,6 +174,17 @@ watch(() => props.id, load, { immediate: true })
     <button type="button" class="btn" @click="preparePdf">Try again</button>
   </div>
   <p v-if="shareError" class="alert-error notice no-print" role="alert">{{ shareError }}</p>
+  <div v-if="received" class="alert-success notice received no-print" role="status">
+    <span>
+      Received {{ formatMoney(received.amount) }} by {{ methodLabel(received.method) }}.
+      {{
+        bill.due_amount > 0
+          ? `${formatMoney(bill.due_amount)} is still due on this bill.`
+          : 'This bill is now paid in full.'
+      }}
+    </span>
+    <a :href="receiptLink" target="_blank" rel="noopener">Send a receipt on WhatsApp</a>
+  </div>
 
   <p v-if="loading">Loading…</p>
 
@@ -183,6 +228,7 @@ watch(() => props.id, load, { immediate: true })
           <span class="label">Billed to</span>
           <strong class="customer">{{ bill.customer.name }}</strong>
           <span>{{ formatMobile(bill.customer.mobile) }}</span>
+          <span v-if="bill.customer.address">{{ bill.customer.address }}</span>
         </div>
         <span class="badge" :class="statusClass(bill.status)">{{ bill.status.label }}</span>
       </div>
@@ -252,9 +298,20 @@ watch(() => props.id, load, { immediate: true })
       <RouterLink :to="{ name: 'customer-show', params: { id: bill.customer.id } }">
         Open {{ bill.customer.name }}’s account
       </RouterLink>
-      to take a payment towards what is due or see all their bills.
+      to see all their bills, or to take one payment across all their dues (oldest bill first).
     </p>
   </template>
+
+  <ReceivePaymentDialog
+    v-if="receiving"
+    :title="`Receive payment for ${bill.bill_number}`"
+    owed-text="Due on this bill:"
+    :owed="bill.due_amount"
+    note="It goes to this bill only."
+    :save="(payment) => store.receivePayment(bill.id, payment)"
+    @received="onReceived"
+    @close="receiving = false"
+  />
 </template>
 
 <style scoped>
@@ -267,6 +324,18 @@ watch(() => props.id, load, { immediate: true })
 .saved,
 .notice {
   margin-bottom: 1rem;
+}
+
+.received {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.received a {
+  font-weight: 600;
 }
 
 /* The bill looks like the paper it prints on, light whatever the screen theme. */

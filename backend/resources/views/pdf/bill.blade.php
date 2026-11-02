@@ -170,6 +170,9 @@
                 <div class="label">Billed to</div>
                 <div class="customer">{{ $bill['customer'] }}</div>
                 <div>{{ $bill['mobile'] }}</div>
+                @if ($bill['address'])
+                    <div>{{ $bill['address'] }}</div>
+                @endif
             </td>
             <td class="right">
                 <span class="status">{{ $bill['status'] }}</span>

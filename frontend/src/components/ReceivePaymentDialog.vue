@@ -1,19 +1,23 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useCustomerStore } from '@/stores/customers'
 import { formatMoney } from '@/utils/format'
 import { PAYMENT_METHODS, duesPayment, toPaise } from '@/utils/billing'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 
+// Takes a payment towards what is due: on one bill, or across all of a customer's bills.
 const props = defineProps({
-  // The customer paying, with what they owe across all their bills.
-  customer: { type: Object, required: true },
+  title: { type: String, default: 'Receive payment' },
+  // Leads into the amount owed: "Ramesh Kumar owes" or "Due on this bill:".
+  owedText: { type: String, required: true },
+  owed: { type: Number, required: true },
+  // Where the money goes, such as "Their oldest bills are cleared first."
+  note: { type: String, required: true },
+  // Saves the payment and resolves with what the page needs, or rejects with the server's error.
+  save: { type: Function, required: true },
 })
 
 const emit = defineEmits(['close', 'received'])
-
-const store = useCustomerStore()
 
 const dialog = ref(null)
 const saving = ref(false)
@@ -21,11 +25,9 @@ const error = ref('')
 const fieldErrors = ref({})
 
 // Most customers clear everything at once, so the whole amount owed is filled in.
-const form = reactive({ method: 'cash', amount: props.customer.total_due, reference: '' })
+const form = reactive({ method: 'cash', amount: props.owed, reference: '' })
 
-const left = computed(
-  () => Math.max(toPaise(props.customer.total_due) - toPaise(form.amount), 0) / 100,
-)
+const left = computed(() => Math.max(toPaise(props.owed) - toPaise(form.amount), 0) / 100)
 
 onMounted(() => dialog.value.showModal())
 
@@ -44,7 +46,7 @@ async function submit() {
   const payment = duesPayment(form)
 
   try {
-    const result = await store.receivePayment(props.customer.id, payment)
+    const result = await props.save(payment)
 
     emit('received', { ...result, payment })
   } catch (e) {
@@ -62,9 +64,9 @@ async function submit() {
 <template>
   <dialog ref="dialog" class="dialog" @cancel="onCancel" @close="emit('close')">
     <form @submit.prevent="submit">
-      <h2>Receive payment</h2>
+      <h2>{{ title }}</h2>
       <p class="owed">
-        {{ customer.name }} owes <strong>{{ formatMoney(customer.total_due) }}</strong>
+        {{ owedText }} <strong>{{ formatMoney(owed) }}</strong>
         <InfoTip term="Due" />
       </p>
 
@@ -79,14 +81,14 @@ async function submit() {
           type="number"
           min="0.01"
           step="0.01"
-          :max="customer.total_due"
+          :max="owed"
           required
           autofocus
         />
         <p v-if="fieldErrors.amount" class="field-error">{{ fieldErrors.amount[0] }}</p>
         <p v-else class="hint">
-          {{ left > 0 ? `${formatMoney(left)} will still be due.` : 'This clears all they owe.' }}
-          Their oldest bills are cleared first.
+          {{ left > 0 ? `${formatMoney(left)} will still be due.` : 'Nothing will be left due.' }}
+          {{ note }}
         </p>
       </div>
 

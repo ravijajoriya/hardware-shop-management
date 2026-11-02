@@ -33,6 +33,16 @@ export const useBillStore = defineStore('bills', () => {
     return data
   }
 
+  // Take a payment towards this bill only, and get the bill back with it.
+  async function receivePayment(id, payload) {
+    const { data, shop } = await auth.request(`/admin/bills/${id}/payments`, {
+      method: 'POST',
+      body: payload,
+    })
+
+    return { bill: data, shop }
+  }
+
   // The bill as a PDF file, ready to share or save.
   async function fetchPdf(bill) {
     const blob = await auth.request(`/admin/bills/${bill.id}/pdf`, { responseType: 'blob' })
@@ -40,5 +50,5 @@ export const useBillStore = defineStore('bills', () => {
     return new File([blob], `${bill.bill_number}.pdf`, { type: 'application/pdf' })
   }
 
-  return { bills, meta, listQuery, fetchPage, fetchOne, create, fetchPdf }
+  return { bills, meta, listQuery, fetchPage, fetchOne, create, receivePayment, fetchPdf }
 })

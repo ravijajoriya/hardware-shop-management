@@ -103,14 +103,14 @@ class BillPdfTest extends TestCase
         $this->postBill('Ramesh Kumar', '9876543210', [[$hammer, 2], [$nails, 1.5, 110]], [
             ['method' => 'cash', 'amount' => 200],
             ['method' => 'upi', 'amount' => 100, 'reference' => 'UPI123456'],
-        ]);
+        ], address: '12, Station Road, Jaipur');
 
         $html = app(BillPdfService::class)->html(Bill::firstOrFail());
 
         foreach ([
             'Sharma Hardware', 'MG Road, Jaipur',
             'INV-2026-0001', '2 Nov 2026, 3:45 pm',
-            'Ramesh Kumar', '98765 43210', 'Partly paid',
+            'Ramesh Kumar', '98765 43210', '12, Station Road, Jaipur', 'Partly paid',
             'Claw Hammer', '2 pc', '₹350.00', '₹700.00',
             'Wire Nails', '2 inch', '1.5 kg', '₹110.00', '₹165.00',
             'Cash', 'UPI · UPI123456',

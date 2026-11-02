@@ -5,6 +5,7 @@ import {
   billLine,
   billMessage,
   billPayload,
+  billPaymentReceiptMessage,
   billPayments,
   billTotals,
   dueReminderMessage,
@@ -151,13 +152,20 @@ describe('billPayload', () => {
     const line = { ...billLine(nails, nails.variants[0]), quantity: '1.5', price: '110' }
     const payments = [{ method: 'cash', amount: 165, reference: null }]
 
-    expect(
-      billPayload({ name: ' Ramesh Kumar ', mobile: '+91 98765-43210' }, [line], payments),
-    ).toEqual({
-      customer: { name: 'Ramesh Kumar', mobile: '9876543210' },
+    const customer = { name: ' Ramesh Kumar ', mobile: '+91 98765-43210', address: ' 12, MI Road ' }
+
+    expect(billPayload(customer, [line], payments)).toEqual({
+      customer: { name: 'Ramesh Kumar', mobile: '9876543210', address: '12, MI Road' },
       items: [{ product_variant_id: 70, quantity: 1.5, price: 110 }],
       payments,
     })
+  })
+
+  it('sends a blank address as none', () => {
+    const line = billLine(nails, nails.variants[0])
+    const customer = { name: 'Ramesh Kumar', mobile: '9876543210', address: '   ' }
+
+    expect(billPayload(customer, [line], []).customer.address).toBeNull()
   })
 
   it('sends a blank price as missing, not as zero', () => {
@@ -281,6 +289,24 @@ describe('WhatsApp messages', () => {
     expect(message).toContain('• INV-2026-0007 of 2 Nov 2026: ₹200.00')
     expect(message.indexOf('INV-2026-0007')).toBeLessThan(message.indexOf('INV-2026-0009'))
     expect(message).not.toContain('INV-2026-0008')
+  })
+
+  it('confirms a payment on one bill with what that bill still owes', () => {
+    const url = 'https://shop.example/bill/Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7cDe0f'
+
+    const message = billPaymentReceiptMessage(
+      { ...bill, due_amount: 80, share_url: url },
+      { method: 'bank_transfer', amount: 300 },
+      shop,
+    )
+
+    expect(message).toContain('Received ₹300.00 by Bank transfer from Ramesh Kumar on ')
+    expect(message).toContain('for bill INV-2026-0007. Thank you!')
+    expect(message).toContain('Still due on this bill: ₹80.00')
+    expect(message).toContain(`PDF of your bill: ${url}`)
+    expect(
+      billPaymentReceiptMessage({ ...bill, due_amount: 0 }, { method: 'cash', amount: 80 }, shop),
+    ).toContain('This bill is now paid in full.')
   })
 
   it('confirms a payment with what is still due', () => {

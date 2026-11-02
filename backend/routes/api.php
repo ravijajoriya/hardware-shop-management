@@ -35,11 +35,13 @@ Route::prefix('admin')->group(function () {
 
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 
-        // Bills are never edited or deleted once made; dues are paid through the customer.
+        // Bills are never edited or deleted once made. Dues are paid on one bill, or through the
+        // customer, which clears their oldest bills first.
         Route::get('/bills', [BillController::class, 'index']);
         Route::post('/bills', [BillController::class, 'store']);
         Route::get('/bills/{bill}', [BillController::class, 'show']);
         Route::get('/bills/{bill}/pdf', [BillController::class, 'pdf']);
+        Route::post('/bills/{bill}/payments', [BillController::class, 'receivePayment']);
 
         // Registered before {customer} so "lookup" is not read as a customer id.
         Route::get('/customers/lookup', [CustomerController::class, 'lookup']);

@@ -78,9 +78,12 @@ class CustomerRepository
         return User::create($attributes);
     }
 
-    public function rename(User $customer, string $name): void
+    /**
+     * @param  array{name?: string, address?: string}  $details
+     */
+    public function updateDetails(User $customer, array $details): void
     {
-        $customer->update(['name' => $name]);
+        $customer->update($details);
     }
 
     /**

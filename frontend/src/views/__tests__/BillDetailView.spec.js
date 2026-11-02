@@ -11,7 +11,12 @@ const bill = {
   id: 9,
   bill_number: 'INV-2026-0009',
   share_url: 'http://localhost:8000/bill/Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7cDe0f',
-  customer: { id: 4, name: 'Ramesh Kumar', mobile: '9876543210' },
+  customer: {
+    id: 4,
+    name: 'Ramesh Kumar',
+    mobile: '9876543210',
+    address: '12, Station Road, Jaipur',
+  },
   total: 880,
   paid_amount: 500,
   due_amount: 380,
@@ -42,10 +47,37 @@ const bill = {
 const shop = { name: 'Sharma Hardware', address: 'MG Road, Jaipur', phone: null }
 
 // The bill, and its PDF unless `pdfStatus` says the server failed to make it.
-function serve({ pdfStatus = 200 } = {}) {
+// The bill after the rest of it, ₹380, is paid by UPI.
+const paidBill = {
+  ...bill,
+  paid_amount: 880,
+  due_amount: 0,
+  status: { value: 'paid', label: 'Paid' },
+  payments: [
+    ...bill.payments,
+    {
+      id: 2,
+      method: { value: 'upi', label: 'UPI' },
+      amount: 380,
+      reference: 'UPI778899',
+      received_at: '2026-11-05T09:00:00Z',
+    },
+  ],
+}
+
+// jsdom has no modal dialogs.
+HTMLDialogElement.prototype.showModal ??= function () {
+  this.setAttribute('open', '')
+}
+
+function serve({ pdfStatus = 200, shown = bill } = {}) {
   return async (url) => {
+    if (url.endsWith('/payments')) {
+      return new Response(JSON.stringify({ data: paidBill, shop }), { status: 200 })
+    }
+
     if (!url.endsWith('/pdf')) {
-      return new Response(JSON.stringify({ data: bill, shop }), { status: 200 })
+      return new Response(JSON.stringify({ data: shown, shop }), { status: 200 })
     }
 
     return pdfStatus === 200
@@ -109,6 +141,14 @@ describe('BillDetailView: sending the bill', () => {
   const button = (wrapper, label) => wrapper.findAll('button').find((b) => b.text() === label)
   const sendLink = (wrapper) => wrapper.findAll('a').find((a) => a.text() === 'Send on WhatsApp')
 
+  it('shows who the bill is for, with their address', async () => {
+    const wrapper = await open()
+
+    expect(wrapper.get('.bill-to').text()).toContain(
+      'Ramesh Kumar98765 4321012, Station Road, Jaipur',
+    )
+  })
+
   it('makes the PDF as soon as the bill shows', async () => {
     const wrapper = await open()
 
@@ -168,6 +208,45 @@ describe('BillDetailView: sending the bill', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('takes a payment towards this bill and offers a receipt', async () => {
+    const wrapper = await open()
+
+    await button(wrapper, 'Receive payment').trigger('click')
+    const dialog = wrapper.get('dialog')
+    expect(dialog.get('h2').text()).toBe('Receive payment for INV-2026-0009')
+    expect(dialog.get('.owed').text()).toContain('Due on this bill: ₹380.00')
+    expect(dialog.get('#payment-amount').element.value).toBe('380')
+
+    await dialog.get('input[value="upi"]').setValue()
+    await dialog.get('#payment-reference').setValue('UPI778899')
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    const [url, options] = fetchMock.mock.calls.find(([url]) => url.endsWith('/payments'))
+    expect(url).toMatch(/\/admin\/bills\/9\/payments$/)
+    expect(options.method).toBe('POST')
+    expect(JSON.parse(options.body)).toEqual({ method: 'upi', amount: 380, reference: 'UPI778899' })
+
+    expect(wrapper.find('dialog').exists()).toBe(false)
+    const note = wrapper.get('.received')
+    expect(note.text()).toContain('Received ₹380.00 by UPI. This bill is now paid in full.')
+    const receipt = decodeURIComponent(note.get('a').attributes('href').split('text=')[1])
+    expect(receipt).toContain('for bill INV-2026-0009')
+    expect(receipt).toContain('This bill is now paid in full.')
+
+    // Nothing is due any more, and the PDF is made again to show the payment.
+    expect(button(wrapper, 'Receive payment')).toBeUndefined()
+    expect(wrapper.get('.sheet').text()).toContain('UPI · UPI778899')
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/pdf'))).toHaveLength(2)
+  })
+
+  it('offers no payment on a bill that is paid in full', async () => {
+    const wrapper = await open({ shown: paidBill })
+
+    expect(wrapper.get('.sheet').text()).toContain('Paid')
+    expect(button(wrapper, 'Receive payment')).toBeUndefined()
   })
 
   it('still sends on WhatsApp when the PDF could not be fetched', async () => {

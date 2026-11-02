@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 #[Fillable([
     'bill_number', 'share_token', 'customer_id', 'customer_name', 'customer_mobile',
-    'total', 'paid_amount', 'due_amount', 'status', 'created_by',
+    'customer_address', 'total', 'paid_amount', 'due_amount', 'status', 'created_by',
 ])]
 #[Hidden(['share_token'])]
 class Bill extends Model

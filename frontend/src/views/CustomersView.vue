@@ -140,6 +140,7 @@ watch(
         <thead>
           <tr>
             <th scope="col">Customer</th>
+            <th scope="col">Address</th>
             <th scope="col">Mobile</th>
             <th scope="col" class="num">Bills</th>
             <th scope="col" class="num">Total billed</th>
@@ -153,6 +154,7 @@ watch(
                 {{ customer.name }}
               </RouterLink>
             </td>
+            <td class="address-cell">{{ customer.address ?? '—' }}</td>
             <td>{{ formatMobile(customer.mobile) }}</td>
             <td class="num">{{ customer.bills_count }}</td>
             <td class="num">{{ formatMoney(customer.total_billed) }}</td>
@@ -213,6 +215,12 @@ watch(
 }
 
 .data-table td.name-cell {
+  min-width: 12rem;
+  white-space: normal;
+}
+
+/* Addresses are up to 50 characters, so they wrap instead of widening the table. */
+.data-table td.address-cell {
   min-width: 12rem;
   white-space: normal;
 }

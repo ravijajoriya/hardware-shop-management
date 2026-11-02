@@ -38,19 +38,29 @@ class CustomerService
     }
 
     /**
-     * The customer with this mobile number, added if new. A different name typed for
-     * a known number replaces the saved one, since the shopkeeper has just checked it.
+     * The customer with this mobile number, added if new. A different name or address typed
+     * for a known number replaces the saved one, since the shopkeeper has just checked it; a
+     * blank address leaves the saved one as it is.
      */
-    public function resolve(string $name, string $mobile): User
+    public function resolve(string $name, string $mobile, ?string $address = null): User
     {
         $customer = $this->customers->findByMobile($mobile);
 
         if (! $customer) {
-            return $this->customers->create(['name' => $name, 'mobile' => $mobile]);
+            return $this->customers->create(['name' => $name, 'mobile' => $mobile, 'address' => $address]);
         }
 
-        if (! $customer->is_admin && $customer->name !== $name) {
-            $this->customers->rename($customer, $name);
+        if ($customer->is_admin) {
+            return $customer;
+        }
+
+        $changes = array_filter([
+            'name' => $customer->name !== $name ? $name : null,
+            'address' => $address !== null && $customer->address !== $address ? $address : null,
+        ]);
+
+        if ($changes) {
+            $this->customers->updateDetails($customer, $changes);
         }
 
         return $customer;

@@ -50,17 +50,19 @@ const customer = reactive({
   // Filled in when coming from a customer's page with "New bill".
   mobile: typeof route.query.mobile === 'string' ? route.query.mobile : '',
   name: '',
+  address: '',
 })
 
 const mobileInput = ref(null)
 const nameInput = ref(null)
+const addressInput = ref(null)
 
 // The saved customer with the typed number: null for a new number, undefined until checked.
 const known = ref(undefined)
 const lookupError = ref('')
 
-// The name filled in by the last lookup, so it can be taken back when the number changes.
-let filledName = ''
+// What the last lookup filled in, so it can be taken back when the number changes.
+const filled = { name: '', address: '' }
 let lookupTimer
 let latestLookup = 0
 
@@ -72,6 +74,24 @@ const renaming = computed(() => {
   const typed = customer.name.trim()
 
   return Boolean(known.value && typed && typed !== known.value.name)
+})
+
+// What this bill does to a returning customer's saved address. A blank address never erases it.
+const addressNote = computed(() => {
+  const typed = customer.address.trim()
+  const saved = known.value?.address ?? ''
+
+  if (!known.value || typed === saved) {
+    return ''
+  }
+
+  if (!typed) {
+    return `Left off this bill. Their saved address “${saved}” stays as it is.`
+  }
+
+  return saved
+    ? `Saved as “${saved}”. This bill changes it to “${typed}”.`
+    : 'It is saved with the customer for next time.'
 })
 
 watch(
@@ -98,7 +118,7 @@ async function lookup(value) {
     // The number may have changed while this one was being checked.
     if (request === latestLookup) {
       known.value = found
-      fillName(found)
+      fillDetails(found)
     }
   } catch (e) {
     if (request === latestLookup) {
@@ -107,17 +127,19 @@ async function lookup(value) {
   }
 }
 
-// Fill in a returning customer's name unless another was typed, and clear a name that was
+// Fill in a returning customer's name and address unless others were typed, and clear what was
 // filled in for a different number.
-function fillName(found) {
-  const typed = customer.name.trim()
+function fillDetails(found) {
+  for (const field of ['name', 'address']) {
+    const typed = customer[field].trim()
 
-  if (found && (!typed || typed === filledName)) {
-    customer.name = found.name
-    filledName = found.name
-  } else if (!found && typed && typed === filledName) {
-    customer.name = ''
-    filledName = ''
+    if (found && (!typed || typed === filled[field])) {
+      customer[field] = found[field] ?? ''
+      filled[field] = customer[field]
+    } else if (!found && typed && typed === filled[field]) {
+      customer[field] = ''
+      filled[field] = ''
+    }
   }
 }
 
@@ -416,7 +438,7 @@ onMounted(() => (customer.mobile ? searchInput : mobileInput).value?.focus())
             maxlength="255"
             autocomplete="off"
             required
-            @keydown.enter.prevent="focusSearch"
+            @keydown.enter.prevent="addressInput?.focus()"
           />
           <p v-if="errorFor('customer.name')" class="field-error">
             {{ errorFor('customer.name') }}
@@ -424,6 +446,26 @@ onMounted(() => (customer.mobile ? searchInput : mobileInput).value?.focus())
           <p v-else-if="renaming" class="hint">
             Saved as “{{ known.name }}”. This bill changes it to “{{ customer.name.trim() }}”.
           </p>
+        </div>
+
+        <div class="field">
+          <label for="bill-address">Address <span class="optional">optional</span></label>
+          <input
+            id="bill-address"
+            ref="addressInput"
+            v-model="customer.address"
+            class="input"
+            type="text"
+            maxlength="50"
+            autocomplete="off"
+            placeholder="e.g. 12, Station Road, Jaipur"
+            @keydown.enter.prevent="focusSearch"
+          />
+          <p v-if="errorFor('customer.address')" class="field-error">
+            {{ errorFor('customer.address') }}
+          </p>
+          <p v-else-if="addressNote" class="hint">{{ addressNote }}</p>
+          <p v-else class="hint">Printed on the bill. Up to 50 characters.</p>
         </div>
       </div>
     </section>
