@@ -249,9 +249,22 @@ export function billMessage(bill, shop) {
   }
 
   lines.push(bill.due_amount > 0 ? `*Due: ${formatMoney(bill.due_amount)}*` : 'Paid in full.')
+
+  // WhatsApp turns the address into a link the customer taps to open or save the PDF.
+  if (bill.share_url) {
+    lines.push('', `PDF of your bill: ${bill.share_url}`)
+  }
+
   lines.push('', 'Thank you for shopping with us!')
 
   return lines.join('\n')
+}
+
+// The few words that go with the bill's PDF when it is shared.
+export function billCaption(bill, shop) {
+  const due = bill.due_amount > 0 ? `${formatMoney(bill.due_amount)} due` : 'paid in full'
+
+  return `Bill ${bill.bill_number} from ${shop.name}: ${formatMoney(bill.total)}, ${due}. Thank you!`
 }
 
 // A polite reminder of what the customer owes, bill by bill, oldest first.

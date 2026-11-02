@@ -3,7 +3,15 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useBillStore } from '@/stores/bills'
 import { formatDateTime, formatMoney } from '@/utils/format'
-import { billMessage, formatMobile, itemQuantity, statusClass, whatsappLink } from '@/utils/billing'
+import {
+  billCaption,
+  billMessage,
+  formatMobile,
+  itemQuantity,
+  statusClass,
+  whatsappLink,
+} from '@/utils/billing'
+import { canShareFile, downloadFile } from '@/utils/files'
 import InfoTip from '@/components/InfoTip.vue'
 
 const props = defineProps({
@@ -32,6 +40,16 @@ const whatsapp = computed(() =>
   whatsappLink(bill.value.customer.mobile, billMessage(bill.value, shop.value)),
 )
 
+// The bill's PDF, made as soon as the bill shows, for "Download PDF" and "Share PDF". It has to
+// be ready before "Share PDF" is pressed: phones only open the share menu straight from the tap.
+// ("Send on WhatsApp" needs none of this; its message links to the PDF on the server.)
+const pdf = ref(null)
+const pdfError = ref('')
+const shareError = ref('')
+let latestPdf = 0
+
+const canShare = computed(() => pdf.value !== null && canShareFile(pdf.value))
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -41,11 +59,45 @@ async function load() {
 
     bill.value = result.bill
     shop.value = result.shop
+    preparePdf()
   } catch (e) {
     notFound.value = e.status === 404
     error.value = notFound.value ? 'This bill does not exist.' : e.message
   } finally {
     loading.value = false
+  }
+}
+
+async function preparePdf() {
+  const request = ++latestPdf
+  pdf.value = null
+  pdfError.value = ''
+
+  try {
+    const file = await store.fetchPdf(bill.value)
+
+    if (request === latestPdf) {
+      pdf.value = file
+    }
+  } catch (e) {
+    if (request === latestPdf) {
+      pdfError.value = e.message
+    }
+  }
+}
+
+// Hands the PDF file itself to the device's share menu, where WhatsApp and the customer's chat
+// are picked.
+async function sharePdf() {
+  shareError.value = ''
+
+  try {
+    await navigator.share({ files: [pdf.value], text: billCaption(bill.value, shop.value) })
+  } catch (e) {
+    // Closing the share menu without picking an app is not a problem.
+    if (e.name !== 'AbortError') {
+      shareError.value = `Could not open the share menu: ${e.message}`
+    }
   }
 }
 
@@ -70,10 +122,24 @@ watch(() => props.id, load, { immediate: true })
     <button type="button" class="btn" @click="goBack">← Back</button>
     <div v-if="bill" class="actions">
       <button type="button" class="btn" @click="print">Print</button>
+      <button type="button" class="btn" :disabled="!pdf" @click="downloadFile(pdf)">
+        Download PDF
+      </button>
+      <!-- Only where the device can hand files to other apps, such as phones. -->
+      <button v-if="canShare" type="button" class="btn" @click="sharePdf">Share PDF</button>
       <a class="btn" :href="whatsapp" target="_blank" rel="noopener">Send on WhatsApp</a>
       <RouterLink class="btn btn-primary" :to="{ name: 'bill-create' }">New bill</RouterLink>
     </div>
   </div>
+
+  <div v-if="pdfError" class="alert-error load-error notice no-print" role="alert">
+    <span>
+      Could not get the PDF for download or sharing: {{ pdfError }} Send on WhatsApp still works;
+      its link makes the PDF when the customer opens it.
+    </span>
+    <button type="button" class="btn" @click="preparePdf">Try again</button>
+  </div>
+  <p v-if="shareError" class="alert-error notice no-print" role="alert">{{ shareError }}</p>
 
   <p v-if="loading">Loading…</p>
 
@@ -198,7 +264,8 @@ watch(() => props.id, load, { immediate: true })
   gap: 0.5rem;
 }
 
-.saved {
+.saved,
+.notice {
   margin-bottom: 1rem;
 }
 

@@ -7,14 +7,17 @@ use App\Http\Requests\Admin\BillIndexRequest;
 use App\Http\Requests\Admin\StoreBillRequest;
 use App\Http\Resources\BillResource;
 use App\Models\Bill;
+use App\Services\BillPdfService;
 use App\Services\BillService;
 use App\Services\ShopService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class BillController extends Controller
 {
     public function __construct(
         private readonly BillService $bills,
+        private readonly BillPdfService $pdfs,
         private readonly ShopService $shop,
     ) {}
 
@@ -41,5 +44,13 @@ class BillController extends Controller
     {
         return (new BillResource($this->bills->details($bill)))
             ->additional(['shop' => $this->shop->details()]);
+    }
+
+    /**
+     * The bill as a PDF, to share on WhatsApp or download.
+     */
+    public function pdf(Bill $bill): Response
+    {
+        return response($this->pdfs->render($bill), 200, $this->pdfs->headers($bill));
     }
 }

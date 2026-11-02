@@ -61,6 +61,31 @@ describe('bill store', () => {
     expect(JSON.parse(options.body)).toEqual(payload)
   })
 
+  it('fetches the bill as a PDF file named after its number', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('%PDF-1.7', { status: 200, headers: { 'Content-Type': 'application/pdf' } }),
+    )
+    const store = useBillStore()
+
+    const file = await store.fetchPdf(bill)
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/admin\/bills\/9\/pdf$/)
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer abc123')
+    expect(file).toBeInstanceOf(File)
+    expect(file.name).toBe('INV-2026-0009.pdf')
+    expect(file.type).toBe('application/pdf')
+  })
+
+  it('reports a PDF the server could not make', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(500, { message: 'Server Error' }))
+    const store = useBillStore()
+
+    await expect(store.fetchPdf(bill)).rejects.toMatchObject({
+      status: 500,
+      message: 'Server Error',
+    })
+  })
+
   it('passes on the messages for a bill the server rejects', async () => {
     const errors = { 'items.0.quantity': ['Piece (pc) is sold in whole numbers.'] }
     fetchMock.mockResolvedValue(

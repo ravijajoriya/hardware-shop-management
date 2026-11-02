@@ -39,6 +39,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/bills', [BillController::class, 'index']);
         Route::post('/bills', [BillController::class, 'store']);
         Route::get('/bills/{bill}', [BillController::class, 'show']);
+        Route::get('/bills/{bill}/pdf', [BillController::class, 'pdf']);
 
         // Registered before {customer} so "lookup" is not read as a customer id.
         Route::get('/customers/lookup', [CustomerController::class, 'lookup']);

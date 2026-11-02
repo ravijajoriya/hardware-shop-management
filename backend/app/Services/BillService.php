@@ -13,6 +13,7 @@ use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class BillService
@@ -68,6 +69,8 @@ class BillService
 
             $bill = $this->bills->create([
                 'bill_number' => $this->nextBillNumber(),
+                // Long and random, so the bill's PDF link cannot be guessed.
+                'share_token' => Str::random(40),
                 'customer_id' => $customer->id,
                 'customer_name' => $data['customer']['name'],
                 'customer_mobile' => $data['customer']['mobile'],

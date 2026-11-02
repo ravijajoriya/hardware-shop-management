@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import {
+  billCaption,
   billLine,
   billMessage,
   billPayload,
@@ -235,6 +236,24 @@ describe('WhatsApp messages', () => {
     expect(message).toMatch(/^\*Sharma Hardware\*\n\nBill/)
     expect(message).toContain('Paid in full.')
     expect(message).not.toContain('Due')
+  })
+
+  it('adds the link to the bill’s PDF when there is one', () => {
+    const url = 'https://shop.example/bill/Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7cDe0f'
+
+    expect(billMessage({ ...bill, share_url: url }, shop)).toContain(
+      `*Due: ₹380.00*\n\nPDF of your bill: ${url}\n\nThank you`,
+    )
+    expect(billMessage(bill, shop)).not.toContain('PDF')
+  })
+
+  it('sends a short caption with the PDF', () => {
+    expect(billCaption(bill, shop)).toBe(
+      'Bill INV-2026-0007 from Sharma Hardware: ₹880.00, ₹380.00 due. Thank you!',
+    )
+    expect(billCaption({ ...bill, due_amount: 0 }, shop)).toBe(
+      'Bill INV-2026-0007 from Sharma Hardware: ₹880.00, paid in full. Thank you!',
+    )
   })
 
   it('leaves out the paid line when nothing is paid', () => {

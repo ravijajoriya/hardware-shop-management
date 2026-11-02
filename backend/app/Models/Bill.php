@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BillStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,9 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property BillStatus $status
  */
 #[Fillable([
-    'bill_number', 'customer_id', 'customer_name', 'customer_mobile',
+    'bill_number', 'share_token', 'customer_id', 'customer_name', 'customer_mobile',
     'total', 'paid_amount', 'due_amount', 'status', 'created_by',
 ])]
+#[Hidden(['share_token'])]
 class Bill extends Model
 {
     /**

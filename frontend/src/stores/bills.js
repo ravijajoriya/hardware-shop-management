@@ -33,5 +33,12 @@ export const useBillStore = defineStore('bills', () => {
     return data
   }
 
-  return { bills, meta, listQuery, fetchPage, fetchOne, create }
+  // The bill as a PDF file, ready to share or save.
+  async function fetchPdf(bill) {
+    const blob = await auth.request(`/admin/bills/${bill.id}/pdf`, { responseType: 'blob' })
+
+    return new File([blob], `${bill.bill_number}.pdf`, { type: 'application/pdf' })
+  }
+
+  return { bills, meta, listQuery, fetchPage, fetchOne, create, fetchPdf }
 })

@@ -21,6 +21,8 @@ class BillResource extends JsonResource
         return [
             'id' => $this->id,
             'bill_number' => $this->bill_number,
+            // The private link the customer opens the bill's PDF from.
+            'share_url' => $this->share_token ? route('bills.shared', $this->share_token) : null,
             // As printed on the bill, even if the customer's details change later.
             'customer' => [
                 'id' => $this->customer_id,

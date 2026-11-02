@@ -14,6 +14,14 @@ final class MobileNumber
      * "+91 98765-43210" and "098765 43210" are all saved as "9876543210".
      * Anything else comes back as just its digits, for validation to reject.
      */
+    /**
+     * A saved number grouped the way it is read out: "98765 43210".
+     */
+    public static function format(string $mobile): string
+    {
+        return substr($mobile, 0, 5).' '.substr($mobile, 5);
+    }
+
     public static function normalize(?string $value): ?string
     {
         if ($value === null) {
