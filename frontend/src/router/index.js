@@ -1,8 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AdminLayout from '../layouts/AdminLayout.vue'
+import BillDetailView from '../views/BillDetailView.vue'
+import BillFormView from '../views/BillFormView.vue'
+import BillsView from '../views/BillsView.vue'
 import BrandsView from '../views/BrandsView.vue'
 import CategoriesView from '../views/CategoriesView.vue'
+import CustomerDetailView from '../views/CustomerDetailView.vue'
+import CustomersView from '../views/CustomersView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import ProductDetailView from '../views/ProductDetailView.vue'
@@ -21,6 +26,38 @@ const router = createRouter({
           path: '',
           name: 'dashboard',
           component: DashboardView,
+        },
+        {
+          path: 'bills',
+          name: 'bills',
+          component: BillsView,
+          meta: { section: 'bills' },
+        },
+        {
+          path: 'bills/new',
+          name: 'bill-create',
+          component: BillFormView,
+          meta: { section: 'bills' },
+        },
+        {
+          path: 'bills/:id',
+          name: 'bill-show',
+          component: BillDetailView,
+          props: true,
+          meta: { section: 'bills' },
+        },
+        {
+          path: 'customers',
+          name: 'customers',
+          component: CustomersView,
+          meta: { section: 'customers' },
+        },
+        {
+          path: 'customers/:id',
+          name: 'customer-show',
+          component: CustomerDetailView,
+          props: true,
+          meta: { section: 'customers' },
         },
         {
           path: 'products',

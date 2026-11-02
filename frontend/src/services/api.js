@@ -10,7 +10,11 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest(path, { method = 'GET', body, token } = {}) {
+// `responseType: 'blob'` returns a file, such as a bill's PDF, instead of parsed JSON.
+export async function apiRequest(
+  path,
+  { method = 'GET', body, token, responseType = 'json' } = {},
+) {
   const headers = { Accept: 'application/json' }
   const options = { method, headers }
 
@@ -32,6 +36,10 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
     response = await fetch(`${API_URL}${path}`, options)
   } catch {
     throw new ApiError('Could not reach the server. Check that the API is running.', 0)
+  }
+
+  if (response.ok && responseType === 'blob') {
+    return response.blob()
   }
 
   const data = response.status === 204 ? null : await response.json().catch(() => null)

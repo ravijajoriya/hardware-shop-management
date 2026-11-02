@@ -28,11 +28,20 @@ async function logout() {
 
 <template>
   <div class="admin">
-    <header class="topbar">
+    <header class="topbar no-print">
       <span class="brand">Hardware Shop Management</span>
 
       <nav class="nav" aria-label="Main">
         <RouterLink :to="{ name: 'dashboard' }">Dashboard</RouterLink>
+        <RouterLink :to="{ name: 'bills' }" :class="{ active: route.meta.section === 'bills' }">
+          Bills
+        </RouterLink>
+        <RouterLink
+          :to="{ name: 'customers' }"
+          :class="{ active: route.meta.section === 'customers' }"
+        >
+          Customers
+        </RouterLink>
         <RouterLink
           :to="{ name: 'products' }"
           :class="{ active: route.meta.section === 'products' }"
@@ -85,7 +94,7 @@ async function logout() {
   border-radius: 6px;
 }
 
-/* "active" also marks Products while on the product form. */
+/* "active" also marks a section while on its other pages, such as Products on the product form. */
 .nav a.router-link-exact-active,
 .nav a.active {
   font-weight: 600;
@@ -104,5 +113,12 @@ async function logout() {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
+}
+
+@media print {
+  .content {
+    max-width: none;
+    padding: 0;
+  }
 }
 </style>

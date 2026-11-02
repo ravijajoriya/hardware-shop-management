@@ -5,6 +5,8 @@ const props = defineProps({
   title: { type: String, required: true },
   message: { type: String, required: true },
   confirmLabel: { type: String, default: 'Confirm' },
+  // Red for actions that destroy something; otherwise the usual green.
+  danger: { type: Boolean, default: true },
   busy: { type: Boolean, default: false },
   error: { type: String, default: '' },
 })
@@ -32,7 +34,13 @@ function onCancel(event) {
 
     <div class="dialog-actions">
       <button type="button" class="btn" :disabled="busy" @click="$emit('close')">Cancel</button>
-      <button type="button" class="btn btn-danger" :disabled="busy" @click="$emit('confirm')">
+      <button
+        type="button"
+        class="btn"
+        :class="danger ? 'btn-danger' : 'btn-primary'"
+        :disabled="busy"
+        @click="$emit('confirm')"
+      >
         {{ confirmLabel }}
       </button>
     </div>
