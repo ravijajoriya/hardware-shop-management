@@ -61,6 +61,22 @@ describe('bill store', () => {
     expect(JSON.parse(options.body)).toEqual(payload)
   })
 
+  it('takes a payment towards one bill', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { data: { ...bill, due_amount: 0 }, shop }))
+    const store = useBillStore()
+    const payment = { method: 'cash', amount: 380, reference: null }
+
+    expect(await store.receivePayment(9, payment)).toEqual({
+      bill: { ...bill, due_amount: 0 },
+      shop,
+    })
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/\/admin\/bills\/9\/payments$/)
+    expect(options.method).toBe('POST')
+    expect(JSON.parse(options.body)).toEqual(payment)
+  })
+
   it('fetches the bill as a PDF file named after its number', async () => {
     fetchMock.mockResolvedValue(
       new Response('%PDF-1.7', { status: 200, headers: { 'Content-Type': 'application/pdf' } }),

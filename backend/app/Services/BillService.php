@@ -65,7 +65,11 @@ class BillService
         }
 
         $bill = DB::transaction(function () use ($data, $lines, $payments, $total, $paid, $admin) {
-            $customer = $this->customers->resolve($data['customer']['name'], $data['customer']['mobile']);
+            $customer = $this->customers->resolve(
+                $data['customer']['name'],
+                $data['customer']['mobile'],
+                $data['customer']['address'] ?? null,
+            );
 
             $bill = $this->bills->create([
                 'bill_number' => $this->nextBillNumber(),
@@ -74,6 +78,7 @@ class BillService
                 'customer_id' => $customer->id,
                 'customer_name' => $data['customer']['name'],
                 'customer_mobile' => $data['customer']['mobile'],
+                'customer_address' => $data['customer']['address'] ?? null,
                 ...$this->amounts($total, $paid),
                 'created_by' => $admin->id,
             ]);
@@ -135,6 +140,34 @@ class BillService
      * @param  Collection<int, Bill>  $bills  Oldest first.
      * @return list<array{bill_number: string, amount: float}>
      */
+    /**
+     * Take a payment towards this one bill, for a customer who wants it there rather than on
+     * their oldest bill. Any number of part payments can be made until the bill is paid.
+     */
+    public function payBill(Bill $bill, array $data, User $admin): Bill
+    {
+        DB::transaction(function () use ($bill, $data, $admin) {
+            // Read again under a lock, so two payments at once cannot both take the same due.
+            $locked = $this->bills->lockForPayment($bill);
+            $due = Money::toPaise($locked->due_amount);
+            $amount = Money::toPaise($data['amount']);
+
+            if ($due === 0) {
+                throw ValidationException::withMessages(['amount' => ['This bill is already paid in full.']]);
+            }
+
+            if ($amount > $due) {
+                throw ValidationException::withMessages([
+                    'amount' => ['This is more than is due on this bill ('.Money::format($due).').'],
+                ]);
+            }
+
+            $this->spread(new Collection([$locked]), $amount, PaymentMethod::from($data['method']), $data['reference'] ?? null, $admin);
+        });
+
+        return $this->details($bill->refresh());
+    }
+
     private function spread(Collection $bills, int $left, PaymentMethod $method, ?string $reference, User $admin): array
     {
         $spread = [];

@@ -28,6 +28,7 @@ class BillResource extends JsonResource
                 'id' => $this->customer_id,
                 'name' => $this->customer_name,
                 'mobile' => $this->customer_mobile,
+                'address' => $this->customer_address,
             ],
             'total' => (float) $this->total,
             'paid_amount' => (float) $this->paid_amount,

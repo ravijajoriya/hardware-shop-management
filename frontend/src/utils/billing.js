@@ -177,7 +177,11 @@ export function billTotals(lines, payments) {
 // The body the API expects when making a bill.
 export function billPayload(customer, lines, payments) {
   return {
-    customer: { name: customer.name.trim(), mobile: normalizeMobile(customer.mobile) },
+    customer: {
+      name: customer.name.trim(),
+      mobile: normalizeMobile(customer.mobile),
+      address: blankToNull(customer.address),
+    },
     items: lines.map((line) => ({
       product_variant_id: line.variant_id,
       quantity: numberOrNull(line.quantity),
@@ -283,6 +287,19 @@ export function dueReminderMessage(customer, shop) {
     'Please pay at the shop or by UPI when convenient. Thank you!',
     '',
     ...shopHeader(shop),
+  ].join('\n')
+}
+
+// A receipt for a payment towards one bill, with what that bill still owes and its PDF link.
+export function billPaymentReceiptMessage(bill, payment, shop) {
+  return [
+    ...shopHeader(shop),
+    '',
+    `Received ${formatMoney(payment.amount)} by ${methodLabel(payment.method)} from ${bill.customer.name} on ${formatDate(new Date())} for bill ${bill.bill_number}. Thank you!`,
+    bill.due_amount > 0
+      ? `Still due on this bill: ${formatMoney(bill.due_amount)}`
+      : 'This bill is now paid in full.',
+    ...(bill.share_url ? ['', `PDF of your bill: ${bill.share_url}`] : []),
   ].join('\n')
 }
 

@@ -91,6 +91,14 @@ class BillRepository
      *
      * @return Collection<int, Bill>
      */
+    /**
+     * The bill read afresh and locked until the transaction ends.
+     */
+    public function lockForPayment(Bill $bill): Bill
+    {
+        return Bill::whereKey($bill->getKey())->lockForUpdate()->firstOrFail();
+    }
+
     public function unpaidFor(User $customer): Collection
     {
         return Bill::where('customer_id', $customer->id)

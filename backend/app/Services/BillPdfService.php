@@ -50,6 +50,7 @@ class BillPdfService
                 'date' => $this->dateTime($bill->created_at),
                 'customer' => $bill->customer_name,
                 'mobile' => MobileNumber::format($bill->customer_mobile),
+                'address' => $bill->customer_address,
                 'status' => $bill->status->label(),
                 'items' => $bill->items->map(fn (BillItem $item) => [
                     'name' => $item->product_name,

@@ -33,6 +33,7 @@ class StoreBillRequest extends FormRequest
             'customer' => ['required', 'array'],
             'customer.name' => ['required', 'string', 'max:255'],
             'customer.mobile' => ['required', 'string', 'regex:'.MobileNumber::PATTERN],
+            'customer.address' => ['nullable', 'string', 'max:50'],
 
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['array'],
@@ -59,6 +60,7 @@ class StoreBillRequest extends FormRequest
         return [
             'customer.name' => 'customer name',
             'customer.mobile' => 'mobile number',
+            'customer.address' => 'address',
             'items.*.product_variant_id' => 'item',
             'items.*.quantity' => 'quantity',
             'items.*.price' => 'price',

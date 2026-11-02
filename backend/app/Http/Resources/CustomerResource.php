@@ -24,6 +24,7 @@ class CustomerResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'mobile' => $this->mobile,
+            'address' => $this->address,
             'bills_count' => $this->whenCounted('bills'),
             'total_billed' => $this->whenHas('total_billed', fn ($total) => (float) $total),
             // What the customer still owes across all their bills (udhaar).

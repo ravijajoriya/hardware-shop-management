@@ -18,7 +18,7 @@ use Laravel\Sanctum\HasApiTokens;
  * Admins log in with email and password. Customers are users too: they have a name and
  * mobile number, no password, and can never log in.
  */
-#[Fillable(['name', 'email', 'mobile', 'password'])]
+#[Fillable(['name', 'email', 'mobile', 'address', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

@@ -126,7 +126,8 @@ watch(
   <template v-else-if="customer">
     <h1 class="page-title">{{ customer.name }}</h1>
     <p class="subtitle">
-      {{ formatMobile(customer.mobile) }} · customer since {{ formatDate(customer.created_at) }}
+      {{ [formatMobile(customer.mobile), customer.address].filter(Boolean).join(' · ') }} · customer
+      since {{ formatDate(customer.created_at) }}
     </p>
 
     <div v-if="received" class="alert-success received" role="status">
@@ -240,7 +241,10 @@ watch(
 
   <ReceivePaymentDialog
     v-if="receiving"
-    :customer="customer"
+    :owed-text="`${customer.name} owes`"
+    :owed="customer.total_due"
+    note="Their oldest bills are cleared first."
+    :save="(payment) => store.receivePayment(customer.id, payment)"
     @received="onReceived"
     @close="receiving = false"
   />

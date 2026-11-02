@@ -35,10 +35,15 @@ trait MakesBills
      * @param  list<array{0: ProductVariant, 1: float|int, 2?: float|int}>  $lines
      * @param  list<array<string, mixed>>  $payments
      */
-    protected function postBill(string $name, string $mobile, array $lines, array $payments = []): TestResponse
-    {
+    protected function postBill(
+        string $name,
+        string $mobile,
+        array $lines,
+        array $payments = [],
+        ?string $address = null,
+    ): TestResponse {
         return $this->postJson('/api/admin/bills', [
-            'customer' => ['name' => $name, 'mobile' => $mobile],
+            'customer' => ['name' => $name, 'mobile' => $mobile, 'address' => $address],
             'items' => array_map(fn (array $line) => [
                 'product_variant_id' => $line[0]->id,
                 'quantity' => $line[1],

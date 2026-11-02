@@ -145,6 +145,45 @@ class BillTest extends TestCase
         $this->assertSame(1, User::customers()->count());
     }
 
+    public function test_the_address_is_saved_with_the_customer_and_printed_on_the_bill(): void
+    {
+        $hammer = $this->itemInStock();
+
+        $this->postBill('Ramesh Kumar', '9876543210', [[$hammer, 1]], address: '  12, Station Road, Jaipur ')
+            ->assertCreated()
+            ->assertJsonPath('data.customer.address', '12, Station Road, Jaipur');
+
+        $customer = User::where('mobile', '9876543210')->firstOrFail();
+        $this->assertSame('12, Station Road, Jaipur', $customer->address);
+
+        $this->getJson('/api/admin/customers/lookup?mobile=9876543210')
+            ->assertJsonPath('data.address', '12, Station Road, Jaipur');
+    }
+
+    public function test_a_new_address_replaces_the_saved_one_but_a_blank_one_keeps_it(): void
+    {
+        $customer = User::factory()->customer()->create([
+            'name' => 'Ramesh Kumar',
+            'mobile' => '9876543210',
+            'address' => '12, Station Road, Jaipur',
+        ]);
+        $hammer = $this->itemInStock();
+
+        // Left blank: the saved address stays, and this bill has none.
+        $first = $this->postBill('Ramesh Kumar', '9876543210', [[$hammer, 1]], address: '')
+            ->assertCreated()
+            ->assertJsonPath('data.customer.address', null)
+            ->json('data.id');
+        $this->assertSame('12, Station Road, Jaipur', $customer->fresh()->address);
+
+        // A new address replaces the saved one; the earlier bill keeps what it had.
+        $this->postBill('Ramesh Kumar', '9876543210', [[$hammer, 1]], address: '4, MI Road, Jaipur')
+            ->assertCreated()
+            ->assertJsonPath('data.customer.address', '4, MI Road, Jaipur');
+        $this->assertSame('4, MI Road, Jaipur', $customer->fresh()->address);
+        $this->getJson("/api/admin/bills/{$first}")->assertJsonPath('data.customer.address', null);
+    }
+
     public function test_the_price_can_be_changed_on_the_bill(): void
     {
         $hammer = $this->itemInStock('Claw Hammer', 260);
@@ -199,7 +238,7 @@ class BillTest extends TestCase
             ->assertJsonValidationErrors(['customer', 'items']);
 
         $this->postJson('/api/admin/bills', [
-            'customer' => ['name' => '', 'mobile' => '12345'],
+            'customer' => ['name' => '', 'mobile' => '12345', 'address' => str_repeat('a', 51)],
             'items' => [
                 ['product_variant_id' => $hammer->id, 'quantity' => 0, 'price' => -1],
                 ['product_variant_id' => $hammer->id, 'quantity' => 1, 'price' => 260],
@@ -211,6 +250,7 @@ class BillTest extends TestCase
             ->assertJsonValidationErrors([
                 'customer.name',
                 'customer.mobile' => 'Enter a 10-digit mobile number, such as 98765 43210.',
+                'customer.address' => 'The address field must not be greater than 50 characters.',
                 'items.0.quantity',
                 'items.0.price',
                 'items.1.product_variant_id' => 'This item is on the bill twice. Change its quantity instead.',

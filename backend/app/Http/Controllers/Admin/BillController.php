@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BillIndexRequest;
+use App\Http\Requests\Admin\PayDuesRequest;
 use App\Http\Requests\Admin\StoreBillRequest;
 use App\Http\Resources\BillResource;
 use App\Models\Bill;
@@ -43,6 +44,15 @@ class BillController extends Controller
     public function show(Bill $bill): BillResource
     {
         return (new BillResource($this->bills->details($bill)))
+            ->additional(['shop' => $this->shop->details()]);
+    }
+
+    /**
+     * Take a payment towards this bill only.
+     */
+    public function receivePayment(PayDuesRequest $request, Bill $bill): BillResource
+    {
+        return (new BillResource($this->bills->payBill($bill, $request->validated(), $request->user())))
             ->additional(['shop' => $this->shop->details()]);
     }
 
