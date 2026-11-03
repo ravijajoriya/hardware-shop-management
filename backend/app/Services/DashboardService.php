@@ -3,17 +3,20 @@
 namespace App\Services;
 
 use App\Repositories\BillRepository;
+use App\Repositories\ProductRepository;
 
 class DashboardService
 {
     public function __construct(
         private readonly BillRepository $bills,
+        private readonly ProductRepository $products,
         private readonly ReportService $reports,
     ) {}
 
     /**
      * Today's sales (after returns) and profit, the money taken and given back today by method,
-     * and what customers owe overall. "Today" follows the shop's clock, not the server's.
+     * what customers owe overall, and how many products are low on stock. "Today" follows the
+     * shop's clock, not the server's.
      *
      * @return array<string, mixed>
      */
@@ -33,6 +36,7 @@ class DashboardService
             'collected' => $totals['received'],
             'refunded' => $totals['refunded'],
             'due' => $this->bills->dues(),
+            'low_stock' => $this->products->lowStockCount(),
         ];
     }
 }

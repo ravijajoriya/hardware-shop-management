@@ -53,6 +53,7 @@ class ProductResource extends JsonResource
             'is_active' => $this->is_active,
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
             'stock_quantity' => $this->whenLoaded('variants', fn () => $this->totalStock()),
+            'low_stock' => $this->whenLoaded('variants', fn () => $this->isLowOnStock()),
             'stock_value' => $this->whenLoaded('variants', fn () => [
                 'cost' => $this->stockCostValue(),
                 'selling' => $this->stockSellingValue(),

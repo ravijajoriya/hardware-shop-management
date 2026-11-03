@@ -50,6 +50,7 @@ final class ActivitySnapshot
                 "{$key}.selling_price" => ["Selling price{$of}", self::money($variant->selling_price)],
                 "{$key}.mrp" => ["MRP{$of}", self::money($variant->mrp)],
                 "{$key}.stock" => ["Stock{$of}", self::quantity($variant->stock_quantity, $unit)],
+                "{$key}.min_stock" => ["Minimum stock{$of}", $variant->min_stock === null ? null : self::quantity($variant->min_stock, $unit)],
             ];
         }
 

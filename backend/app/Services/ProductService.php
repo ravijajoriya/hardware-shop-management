@@ -31,7 +31,7 @@ class ProductService
     ) {}
 
     /**
-     * @param  array<string, mixed>  $filters  Validated list filters: search, category_id, brand_id, per_page.
+     * @param  array<string, mixed>  $filters  Validated list filters: search, category_id, brand_id, low_stock, per_page.
      * @return LengthAwarePaginator<int, Product>
      */
     public function paginate(array $filters): LengthAwarePaginator
@@ -41,7 +41,7 @@ class ProductService
 
     /**
      * @param  array<string, mixed>  $filters  The same filters as the list.
-     * @return array{products: int, cost_value: float, selling_value: float}
+     * @return array{products: int, low_stock: int, cost_value: float, selling_value: float}
      */
     public function stockSummary(array $filters): array
     {
@@ -177,7 +177,8 @@ class ProductService
     }
 
     /**
-     * Units such as Piece or Box are counted in whole numbers, so their stock cannot be 2.5.
+     * Units such as Piece or Box are counted in whole numbers, so their stock (and the
+     * minimum stock to keep) cannot be 2.5.
      *
      * @param  array<string, mixed>  $data
      *
@@ -193,17 +194,21 @@ class ProductService
 
         $errors = [];
 
+        $fields = ['stock_quantity' => 'Stock', 'min_stock' => 'Minimum stock'];
+
         foreach ($data['variants'] as $index => $variant) {
-            if (! isset($variant['stock_quantity'])) {
-                continue;
-            }
+            foreach ($fields as $field => $label) {
+                if (! isset($variant[$field])) {
+                    continue;
+                }
 
-            $quantity = (float) $variant['stock_quantity'];
+                $quantity = (float) $variant[$field];
 
-            if (floor($quantity) !== $quantity) {
-                $errors["variants.{$index}.stock_quantity"] = [
-                    "Stock must be a whole number for {$unit->name} ({$unit->short_name}).",
-                ];
+                if (floor($quantity) !== $quantity) {
+                    $errors["variants.{$index}.{$field}"] = [
+                        "{$label} must be a whole number for {$unit->name} ({$unit->short_name}).",
+                    ];
+                }
             }
         }
 
@@ -217,7 +222,7 @@ class ProductService
      * also matches products in its subcategories.
      *
      * @param  array<string, mixed>  $filters
-     * @return array{search: string|null, category_ids: list<int>|null, brand_id: int|null}
+     * @return array{search: string|null, category_ids: list<int>|null, brand_id: int|null, low_stock: bool}
      */
     private function repositoryFilters(array $filters): array
     {
@@ -225,6 +230,7 @@ class ProductService
             'search' => $filters['search'] ?? null,
             'category_ids' => isset($filters['category_id']) ? $this->categories->branchIds((int) $filters['category_id']) : null,
             'brand_id' => isset($filters['brand_id']) ? (int) $filters['brand_id'] : null,
+            'low_stock' => (bool) ($filters['low_stock'] ?? false),
         ];
     }
 

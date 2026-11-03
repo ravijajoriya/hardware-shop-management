@@ -8,7 +8,7 @@ export const useProductStore = defineStore('products', () => {
   // The current page of products, its pagination details and the stock worth of every match.
   const products = ref([])
   const meta = ref({ current_page: 1, last_page: 1, from: null, to: null, total: 0 })
-  const summary = ref({ products: 0, cost_value: 0, selling_value: 0 })
+  const summary = ref({ products: 0, low_stock: 0, cost_value: 0, selling_value: 0 })
 
   // The list's last filters, so the form can return to the same page.
   const listQuery = ref({})

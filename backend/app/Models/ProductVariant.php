@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'sku', 'purchase_price', 'selling_price', 'mrp', 'stock_quantity'])]
+#[Fillable(['name', 'sku', 'purchase_price', 'selling_price', 'mrp', 'stock_quantity', 'min_stock'])]
 class ProductVariant extends Model
 {
     /** @use HasFactory<ProductVariantFactory> */
@@ -49,6 +49,15 @@ class ProductVariant extends Model
     }
 
     /**
+     * Whether the stock has fallen below the minimum the shop wants to keep. A variant
+     * without a minimum is never low.
+     */
+    public function isLowOnStock(): bool
+    {
+        return $this->min_stock !== null && (float) $this->stock_quantity < (float) $this->min_stock;
+    }
+
+    /**
      * What this variant's stock cost to buy.
      */
     public function costValue(): float
@@ -76,6 +85,7 @@ class ProductVariant extends Model
             'selling_price' => 'decimal:2',
             'mrp' => 'decimal:2',
             'stock_quantity' => 'decimal:3',
+            'min_stock' => 'decimal:3',
         ];
     }
 }

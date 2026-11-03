@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatMoney, formatQuantity } from '@/utils/format'
-import { rowWorth, variantRow } from '@/utils/productForm'
+import { isBelowMinimum, rowWorth, variantRow } from '@/utils/productForm'
 import InfoTip from '@/components/InfoTip.vue'
 
 const rows = defineModel({ type: Array, required: true })
@@ -63,6 +63,7 @@ function remove(index) {
           <th scope="col">Selling price (₹)</th>
           <th scope="col">MRP (₹) <InfoTip term="MRP" /></th>
           <th scope="col">Stock{{ unit ? ` (${unit.short_name})` : '' }}</th>
+          <th scope="col">Min. stock <InfoTip term="Minimum stock" /></th>
           <th scope="col" class="num">Stock worth</th>
           <th scope="col"><span class="visually-hidden">Remove</span></th>
         </tr>
@@ -153,6 +154,24 @@ function remove(index) {
               {{ errorFor(index, 'stock_quantity') }}
             </p>
           </td>
+          <td class="col-min">
+            <span class="cell-label">Min. stock <InfoTip term="Minimum stock" /></span>
+            <input
+              v-model="row.min_stock"
+              class="input"
+              type="number"
+              min="0"
+              :step="stockStep"
+              placeholder="Optional"
+              :aria-label="`Variant ${index + 1} minimum stock`"
+            />
+            <p v-if="errorFor(index, 'min_stock')" class="field-error">
+              {{ errorFor(index, 'min_stock') }}
+            </p>
+            <p v-else-if="isBelowMinimum(row.stock_quantity, row.min_stock)" class="low">
+              Below the minimum
+            </p>
+          </td>
           <td class="num worth">
             <span class="cell-label">Stock worth</span>
             <div>{{ formatMoney(rowWorth(row).cost) }}</div>
@@ -231,8 +250,16 @@ function remove(index) {
   min-width: 6.5rem;
 }
 
-.col-stock {
+.col-stock,
+.col-min {
   min-width: 6rem;
+}
+
+.low {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-danger);
 }
 
 /* Lined up with the text inside the inputs beside it. */
@@ -284,19 +311,37 @@ function remove(index) {
   opacity: 0.8;
 }
 
-/* A little narrower on smaller laptops and landscape tablets, so every column fits. */
+/* Narrower on smaller laptops and landscape tablets, so every column fits. */
 @media (max-width: 1100px) {
+  .variants th,
+  .variants td {
+    padding-inline: 0.35rem;
+  }
+
+  .col-name {
+    min-width: 6.5rem;
+  }
+
   .col-sku {
-    min-width: 6rem;
+    min-width: 5rem;
   }
 
   .col-price {
-    min-width: 5.75rem;
+    min-width: 5rem;
+  }
+
+  .col-stock,
+  .col-min {
+    min-width: 4.5rem;
+  }
+
+  .variants td.worth {
+    white-space: normal;
   }
 }
 
 /* On tablets and phones each variant is a card (see .stack), so the cells lose their spacing. */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .variants td,
   .variants td:first-child,
   .variants td:last-child,
@@ -307,7 +352,8 @@ function remove(index) {
   .col-name,
   .col-sku,
   .col-price,
-  .col-stock {
+  .col-stock,
+  .col-min {
     min-width: 0;
   }
 

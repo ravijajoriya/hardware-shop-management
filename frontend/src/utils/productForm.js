@@ -14,6 +14,7 @@ export function variantRow(variant = {}) {
     selling_price: variant.selling_price ?? '',
     mrp: variant.mrp ?? '',
     stock_quantity: variant.stock_quantity ?? 0,
+    min_stock: variant.min_stock ?? '',
   }
 }
 
@@ -55,6 +56,7 @@ export function productPayload(form, rows) {
         purchase_price: numberOrNull(row.purchase_price),
         selling_price: numberOrNull(row.selling_price),
         mrp: numberOrNull(row.mrp),
+        min_stock: numberOrNull(row.min_stock),
       }
 
       // Existing variants are matched by id, and their stock is left alone (it changes through
@@ -90,6 +92,13 @@ export function imageOrder(items, uploadedIds) {
   let next = 0
 
   return items.map((item) => (item.file ? uploadedIds[next++] : item.id))
+}
+
+// Whether a stock is below the minimum the shop wants to keep. No minimum means no warning.
+export function isBelowMinimum(stock, minimum) {
+  const least = blankToNull(minimum)
+
+  return least !== null && Number(stock) < Number(least)
 }
 
 // What one editor row's stock is worth, for the live totals.

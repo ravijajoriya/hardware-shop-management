@@ -463,7 +463,7 @@ watch(
   white-space: normal;
 }
 
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.customer-cell {
     min-width: 0;
   }

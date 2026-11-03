@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * @phpstan-type Filters array{search?: string|null, category_ids?: list<int>|null, brand_id?: int|null}
+ * @phpstan-type Filters array{search?: string|null, category_ids?: list<int>|null, brand_id?: int|null, low_stock?: bool}
  */
 class ProductRepository
 {
@@ -43,11 +43,11 @@ class ProductRepository
     }
 
     /**
-     * How many products match the filters and what their stock is worth,
-     * at purchase price and at selling price.
+     * How many products match the filters, how many of those are low on stock, and what
+     * their stock is worth at purchase price and at selling price.
      *
      * @param  Filters  $filters
-     * @return array{products: int, cost_value: float, selling_value: float}
+     * @return array{products: int, low_stock: int, cost_value: float, selling_value: float}
      */
     public function stockSummary(array $filters): array
     {
@@ -59,9 +59,18 @@ class ProductRepository
 
         return [
             'products' => $this->filtered($filters)->count(),
+            'low_stock' => $this->filtered([...$filters, 'low_stock' => true])->count(),
             'cost_value' => round((float) $totals->cost_value, 2),
             'selling_value' => round((float) $totals->selling_value, 2),
         ];
+    }
+
+    /**
+     * How many products need ordering, across the whole shop.
+     */
+    public function lowStockCount(): int
+    {
+        return $this->filtered(['low_stock' => true])->count();
     }
 
     public function loadDetails(Product $product): Product
@@ -142,6 +151,12 @@ class ProductRepository
                 });
             })
             ->when($filters['category_ids'] ?? null, fn (Builder $query, array $ids) => $query->whereIn('category_id', $ids))
-            ->when($filters['brand_id'] ?? null, fn (Builder $query, int $id) => $query->where('brand_id', $id));
+            ->when($filters['brand_id'] ?? null, fn (Builder $query, int $id) => $query->where('brand_id', $id))
+            // As Product::isLowOnStock(): still sold, with a variant below its minimum stock.
+            ->when($filters['low_stock'] ?? false, fn (Builder $query) => $query
+                ->where('is_active', true)
+                ->whereHas('variants', fn (Builder $variants) => $variants
+                    ->whereNotNull('min_stock')
+                    ->whereColumn('stock_quantity', '<', 'min_stock')));
     }
 }
