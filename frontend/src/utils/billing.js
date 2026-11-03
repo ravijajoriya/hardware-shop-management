@@ -338,7 +338,7 @@ export function itemQuantity(item) {
   return formatQuantity(item.quantity, { short_name: item.unit })
 }
 
-// "Cash ₹200.00 + UPI ₹300.00": what was paid each way, in the order it was first paid.
+// "Cash ₹200 + UPI ₹300": what was paid each way, in the order it was first paid.
 export function paidByMethod(payments) {
   const totals = new Map()
 

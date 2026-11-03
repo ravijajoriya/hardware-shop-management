@@ -11,10 +11,10 @@ const priceChange = {
   id: 2,
   action: { value: 'product.updated', label: 'Product changed' },
   section: { value: 'products', label: 'Products' },
-  description: 'Changed product Claw Hammer: Selling price ₹350.00 → ₹380.00',
+  description: 'Changed product Claw Hammer: Selling price ₹350 → ₹380',
   subject: { type: 'product', id: 5, label: 'Claw Hammer', exists: true },
   user: { id: 1, name: 'Ravi' },
-  changes: [{ field: 'Selling price', old: '₹350.00', new: '₹380.00' }],
+  changes: [{ field: 'Selling price', old: '₹350', new: '₹380' }],
   details: [],
   ip_address: '192.168.1.20',
   user_agent:
@@ -97,7 +97,7 @@ describe('ActivityLogView', () => {
     const [first, second] = rows(wrapper)
     expect(first.text()).toContain('Ravi')
     expect(first.text()).toContain('Product changed')
-    expect(first.text()).toContain('Changed product Claw Hammer: Selling price ₹350.00 → ₹380.00')
+    expect(first.text()).toContain('Changed product Claw Hammer: Selling price ₹350 → ₹380')
     expect(first.get('a').attributes('href')).toBe('/products/5')
     expect(first.get('a').text()).toBe('Open Claw Hammer')
 
@@ -114,7 +114,7 @@ describe('ActivityLogView', () => {
     await rows(wrapper)[0].get('button[aria-expanded]').trigger('click')
     const changes = rows(wrapper)[1]
     expect(changes.findAll('.changes tbody tr').map((row) => row.text())).toEqual([
-      'Selling price₹350.00₹380.00',
+      'Selling price₹350₹380',
     ])
     expect(changes.get('.from').text()).toContain('From Chrome on Mac')
     expect(changes.get('.from').text()).toContain('192.168.1.20')

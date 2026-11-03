@@ -124,7 +124,7 @@ class BillTest extends TestCase
             ['method' => 'upi', 'amount' => 100],
         ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['payments' => 'The payments add up to ₹300.00, more than the bill total of ₹260.00.']);
+            ->assertJsonValidationErrors(['payments' => 'The payments add up to ₹300, more than the bill total of ₹260.']);
 
         $this->assertDatabaseCount('bills', 0);
         $this->assertDatabaseMissing('users', ['mobile' => '9876543210']);

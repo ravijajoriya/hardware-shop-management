@@ -278,7 +278,7 @@ describe('BillDetailView: sending the bill', () => {
     expect(files).toHaveLength(1)
     expect(files[0].name).toBe('INV-2026-0009.pdf')
     expect(files[0].type).toBe('application/pdf')
-    expect(text).toBe('Bill INV-2026-0009 from Sharma Hardware: ₹880.00, ₹380.00 due. Thank you!')
+    expect(text).toBe('Bill INV-2026-0009 from Sharma Hardware: ₹880, ₹380 due. Thank you!')
   })
 
   it('offers no Share PDF where the device cannot share files', async () => {
@@ -303,7 +303,7 @@ describe('BillDetailView: sending the bill', () => {
     await button(wrapper, 'Receive payment').trigger('click')
     const dialog = wrapper.get('dialog')
     expect(dialog.get('h2').text()).toBe('Receive payment for INV-2026-0009')
-    expect(dialog.get('.owed').text()).toContain('Due on this bill: ₹380.00')
+    expect(dialog.get('.owed').text()).toContain('Due on this bill: ₹380')
     expect(dialog.get('#payment-amount').element.value).toBe('380')
 
     await dialog.get('input[value="upi"]').setValue()
@@ -318,7 +318,7 @@ describe('BillDetailView: sending the bill', () => {
 
     expect(wrapper.find('dialog').exists()).toBe(false)
     const note = wrapper.get('.received')
-    expect(note.text()).toContain('Received ₹380.00 by UPI. This bill is now paid in full.')
+    expect(note.text()).toContain('Received ₹380 by UPI. This bill is now paid in full.')
     const receipt = decodeURIComponent(note.get('a').attributes('href').split('text=')[1])
     expect(receipt).toContain('for bill INV-2026-0009')
     expect(receipt).toContain('This bill is now paid in full.')
@@ -337,9 +337,9 @@ describe('BillDetailView: sending the bill', () => {
     const dialog = wrapper.get('dialog')
 
     await dialog.get('input[aria-label="How many Claw Hammer came back"]').setValue('1')
-    expect(dialog.get('.settle').text()).toContain('Worth₹440.00')
-    expect(dialog.get('.settle').text()).toContain('₹380.00')
-    expect(dialog.get('.settle').text()).toContain('To give back₹60.00')
+    expect(dialog.get('.settle').text()).toContain('Worth₹440')
+    expect(dialog.get('.settle').text()).toContain('₹380')
+    expect(dialog.get('.settle').text()).toContain('To give back₹60')
     await dialog.get('#return-note').setValue('Handle loose')
     await dialog.get('form').trigger('submit')
     await flushPromises()
@@ -353,10 +353,10 @@ describe('BillDetailView: sending the bill', () => {
 
     expect(wrapper.find('dialog').exists()).toBe(false)
     expect(wrapper.text()).toContain(
-      'Return RET-2026-0001 is saved and the items are back in stock. ₹380.00 came off the due; ₹60.00 given back by Cash.',
+      'Return RET-2026-0001 is saved and the items are back in stock. ₹380 came off the due; ₹60 given back by Cash.',
     )
     expect(wrapper.get('.returns').text()).toContain('RET-2026-0001')
-    expect(wrapper.get('.sums').text()).toContain('Returned−₹440.00')
+    expect(wrapper.get('.sums').text()).toContain('Returned−₹440')
     expect(wrapper.get('.payments').text()).toContain('Given back · Cash')
   })
 
@@ -365,7 +365,7 @@ describe('BillDetailView: sending the bill', () => {
 
     await button(wrapper, 'Cancel bill').trigger('click')
     const dialog = wrapper.get('dialog')
-    expect(dialog.text()).toContain('₹500.00 was paid on this bill.')
+    expect(dialog.text()).toContain('₹500 was paid on this bill.')
     await dialog.get('#cancel-reason').setValue('Made twice')
     await dialog.get('input[value="upi"]').setValue()
     await dialog.get('form').trigger('submit')
@@ -378,7 +378,7 @@ describe('BillDetailView: sending the bill', () => {
     })
 
     expect(wrapper.text()).toContain(
-      'The bill is cancelled and its items are back in stock. ₹500.00 given back by UPI.',
+      'The bill is cancelled and its items are back in stock. ₹500 given back by UPI.',
     )
     expect(wrapper.get('.stamp').text()).toBe('Cancelled')
     expect(wrapper.find('.bill-tools').exists()).toBe(false)

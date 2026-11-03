@@ -46,7 +46,7 @@ const receiptLink = computed(() =>
 
 const list = new Intl.ListFormat('en-IN', { style: 'long', type: 'conjunction' })
 
-// "INV-2026-0001 (₹200.00) and INV-2026-0002 (₹200.00)"
+// "INV-2026-0001 (₹200) and INV-2026-0002 (₹200)"
 const appliedTo = computed(() =>
   list.format(
     received.value.appliedTo.map((part) => `${part.bill_number} (${formatMoney(part.amount)})`),

@@ -21,11 +21,17 @@ final class Money
     }
 
     /**
-     * Rupees as shown to people, with Indian digit grouping: ₹1,23,456.50.
+     * Rupees as shown to people, with Indian digit grouping. Paise appear only when there
+     * are some: ₹1,500 and ₹1,23,456.50. This is display only; amounts are stored in full.
      */
     public static function format(int $paise): string
     {
-        return (new NumberFormatter('en_IN', NumberFormatter::CURRENCY))
-            ->formatCurrency(self::toRupees($paise), 'INR');
+        $formatter = new NumberFormatter('en_IN', NumberFormatter::CURRENCY);
+
+        if ($paise % 100 === 0) {
+            $formatter->setAttribute(NumberFormatter::FRACTION_DIGITS, 0);
+        }
+
+        return $formatter->formatCurrency(self::toRupees($paise), 'INR');
     }
 }

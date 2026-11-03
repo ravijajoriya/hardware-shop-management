@@ -552,7 +552,7 @@ class BillService
     }
 
     /**
-     * "₹4,320.00, ₹500.00 paid, ₹3,820.00 due", "₹865.00, paid in full" or "₹350.00, all due".
+     * "₹4,320, ₹500 paid, ₹3,820 due", "₹865, paid in full" or "₹350, all due".
      */
     private function amountsLine(int $total, int $paid): string
     {
@@ -566,7 +566,7 @@ class BillService
     }
 
     /**
-     * "Wire Nails (2 inch): 1.5 kg × ₹110.00 = ₹165.00"
+     * "Wire Nails (2 inch): 1.5 kg × ₹110 = ₹165"
      *
      * @param  array<string, mixed>  $line
      */
@@ -585,7 +585,7 @@ class BillService
     }
 
     /**
-     * "UPI ₹300.00 (UPI778899)"
+     * "UPI ₹300 (UPI778899)"
      */
     private function paymentLine(PaymentMethod $method, int $amount, ?string $reference): string
     {

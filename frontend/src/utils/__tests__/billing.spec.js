@@ -238,11 +238,11 @@ describe('WhatsApp messages', () => {
     expect(message).toMatch(/^\*Sharma Hardware\*\nMG Road, Jaipur · 0141 2345678\n\n/)
     expect(message).toContain('Bill INV-2026-0007')
     expect(message).toContain('To: Ramesh Kumar')
-    expect(message).toContain('• Claw Hammer: 2 pc × ₹350.00 = ₹700.00')
-    expect(message).toContain('• Wire Nails (2 inch): 1.5 kg × ₹120.00 = ₹180.00')
-    expect(message).toContain('*Total: ₹880.00*')
-    expect(message).toContain('Paid: ₹500.00 (Cash ₹250.00 + UPI ₹250.00)')
-    expect(message).toContain('*Due: ₹380.00*')
+    expect(message).toContain('• Claw Hammer: 2 pc × ₹350 = ₹700')
+    expect(message).toContain('• Wire Nails (2 inch): 1.5 kg × ₹120 = ₹180')
+    expect(message).toContain('*Total: ₹880*')
+    expect(message).toContain('Paid: ₹500 (Cash ₹250 + UPI ₹250)')
+    expect(message).toContain('*Due: ₹380*')
   })
 
   it('says when a bill is paid in full, and skips contact details that are not set', () => {
@@ -260,17 +260,17 @@ describe('WhatsApp messages', () => {
     const url = 'https://shop.example/bill/Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zAb7cDe0f'
 
     expect(billMessage({ ...bill, share_url: url }, shop)).toContain(
-      `*Due: ₹380.00*\n\nPDF of your bill: ${url}\n\nThank you`,
+      `*Due: ₹380*\n\nPDF of your bill: ${url}\n\nThank you`,
     )
     expect(billMessage(bill, shop)).not.toContain('PDF')
   })
 
   it('sends a short caption with the PDF', () => {
     expect(billCaption(bill, shop)).toBe(
-      'Bill INV-2026-0007 from Sharma Hardware: ₹880.00, ₹380.00 due. Thank you!',
+      'Bill INV-2026-0007 from Sharma Hardware: ₹880, ₹380 due. Thank you!',
     )
     expect(billCaption({ ...bill, due_amount: 0 }, shop)).toBe(
-      'Bill INV-2026-0007 from Sharma Hardware: ₹880.00, paid in full. Thank you!',
+      'Bill INV-2026-0007 from Sharma Hardware: ₹880, paid in full. Thank you!',
     )
   })
 
@@ -278,7 +278,7 @@ describe('WhatsApp messages', () => {
     const message = billMessage({ ...bill, paid_amount: 0, due_amount: 880, payments: [] }, shop)
 
     expect(message).not.toContain('Paid')
-    expect(message).toContain('*Due: ₹880.00*')
+    expect(message).toContain('*Due: ₹880*')
   })
 
   it('reminds a customer of what they owe, oldest bill first', () => {
@@ -295,8 +295,8 @@ describe('WhatsApp messages', () => {
     const message = dueReminderMessage(customer, shop)
 
     expect(message).toMatch(/^Namaste Ramesh Kumar,/)
-    expect(message).toContain('₹500.00 is due on your account')
-    expect(message).toContain('• INV-2026-0007 of 2 Nov 2026: ₹200.00')
+    expect(message).toContain('₹500 is due on your account')
+    expect(message).toContain('• INV-2026-0007 of 2 Nov 2026: ₹200')
     expect(message.indexOf('INV-2026-0007')).toBeLessThan(message.indexOf('INV-2026-0009'))
     expect(message).not.toContain('INV-2026-0008')
   })
@@ -310,9 +310,9 @@ describe('WhatsApp messages', () => {
       shop,
     )
 
-    expect(message).toContain('Received ₹300.00 by Bank transfer from Ramesh Kumar on ')
+    expect(message).toContain('Received ₹300 by Bank transfer from Ramesh Kumar on ')
     expect(message).toContain('for bill INV-2026-0007. Thank you!')
-    expect(message).toContain('Still due on this bill: ₹80.00')
+    expect(message).toContain('Still due on this bill: ₹80')
     expect(message).toContain(`PDF of your bill: ${url}`)
     expect(
       billPaymentReceiptMessage({ ...bill, due_amount: 0 }, { method: 'cash', amount: 80 }, shop),
@@ -324,8 +324,8 @@ describe('WhatsApp messages', () => {
 
     const message = paymentReceiptMessage(customer, { method: 'upi', amount: 400 }, shop)
 
-    expect(message).toContain('Received ₹400.00 by UPI from Ramesh Kumar')
-    expect(message).toContain('Still due: ₹100.00')
+    expect(message).toContain('Received ₹400 by UPI from Ramesh Kumar')
+    expect(message).toContain('Still due: ₹100')
     expect(
       paymentReceiptMessage({ ...customer, total_due: 0 }, { method: 'cash', amount: 100 }, shop),
     ).toContain('Nothing is due on your account now.')
@@ -465,7 +465,7 @@ describe('returns and cancelling', () => {
     const message = billMessage(bill, shop)
 
     expect(message).toContain('*This bill has been cancelled.*')
-    expect(message).toContain('Returned: −₹350.00')
-    expect(message).toContain('Given back: ₹700.00')
+    expect(message).toContain('Returned: −₹350')
+    expect(message).toContain('Given back: ₹700')
   })
 })

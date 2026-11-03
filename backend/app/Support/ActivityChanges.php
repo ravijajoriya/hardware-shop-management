@@ -6,7 +6,7 @@ namespace App\Support;
  * Field-by-field differences between two snapshots of a record, for the activity log.
  *
  * A snapshot maps a stable key to the field's label and its value as people read it:
- * ['variant.4.selling_price' => ['label' => 'Selling price (1 L)', 'value' => '₹360.00']].
+ * ['variant.4.selling_price' => ['label' => 'Selling price (1 L)', 'value' => '₹360']].
  * An empty snapshot stands for a record that did not exist (yet, or any more).
  */
 final class ActivityChanges
@@ -33,7 +33,7 @@ final class ActivityChanges
     }
 
     /**
-     * The first few changes in a line: "Selling price ₹350.00 → ₹380.00, Location … and 2 more".
+     * The first few changes in a line: "Selling price ₹350 → ₹380, Location … and 2 more".
      *
      * @param  list<array{field: string, old: string|null, new: string|null}>  $changes
      */

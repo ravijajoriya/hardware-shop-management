@@ -102,7 +102,7 @@ class BillPaymentTest extends TestCase
 
         $this->pay($bill['id'], 'cash', 200.01)
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['amount' => 'This is more than is due on this bill (₹200.00).']);
+            ->assertJsonValidationErrors(['amount' => 'This is more than is due on this bill (₹200).']);
 
         $this->pay($bill['id'], 'cash', 200)->assertOk()->assertJsonPath('data.due_amount', 0);
 

@@ -111,10 +111,10 @@ class BillPdfTest extends TestCase
             'Sharma Hardware', 'MG Road, Jaipur',
             'INV-2026-0001', '2 Nov 2026, 3:45 pm',
             'Ramesh Kumar', '98765 43210', '12, Station Road, Jaipur', 'Partly paid',
-            'Claw Hammer', '2 pc', '₹350.00', '₹700.00',
-            'Wire Nails', '2 inch', '1.5 kg', '₹110.00', '₹165.00',
+            'Claw Hammer', '2 pc', '₹350', '₹700',
+            'Wire Nails', '2 inch', '1.5 kg', '₹110', '₹165',
             'Cash', 'UPI · UPI123456',
-            '₹865.00', '₹300.00', '₹565.00',
+            '₹865', '₹300', '₹565',
         ] as $text) {
             $this->assertStringContainsString($text, $html);
         }

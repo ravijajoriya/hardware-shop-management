@@ -95,10 +95,10 @@ class BillEditTest extends TestCase
         $logged = ActivityLog::latest('id')->first();
         $this->assertSame('bill.updated', $logged->action->value);
         $this->assertStringStartsWith(
-            "Edited bill {$bill['bill_number']}: Claw Hammer 2 pc × ₹350.00 = ₹700.00 → 3 pc × ₹340.00 = ₹1,020.00",
+            "Edited bill {$bill['bill_number']}: Claw Hammer 2 pc × ₹350 = ₹700 → 3 pc × ₹340 = ₹1,020",
             $logged->description,
         );
-        $this->assertContains(['field' => 'Total', 'old' => '₹880.00', 'new' => '₹1,140.00'], $logged->changes);
+        $this->assertContains(['field' => 'Total', 'old' => '₹880', 'new' => '₹1,140'], $logged->changes);
     }
 
     public function test_lines_can_be_added_and_removed(): void
@@ -128,7 +128,7 @@ class BillEditTest extends TestCase
 
         $this->edit($bill, $smaller)
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['refund.method' => 'The new total is less than what was paid, so ₹350.00 must be given back. Choose how.']);
+            ->assertJsonValidationErrors(['refund.method' => 'The new total is less than what was paid, so ₹350 must be given back. Choose how.']);
         $this->assertEquals(8, $this->hammer->fresh()->stock_quantity);
 
         $this->edit($bill, $smaller, ['refund' => ['method' => 'upi', 'reference' => 'UPI555']])
@@ -144,7 +144,7 @@ class BillEditTest extends TestCase
             ->assertJsonPath('data.refunds.0.reference', 'UPI555');
 
         $this->assertEquals(9, $this->hammer->fresh()->stock_quantity);
-        $this->assertSame(['label' => 'Refunded', 'value' => 'UPI ₹350.00 (UPI555)'], ActivityLog::latest('id')->first()->details[0]);
+        $this->assertSame(['label' => 'Refunded', 'value' => 'UPI ₹350 (UPI555)'], ActivityLog::latest('id')->first()->details[0]);
     }
 
     public function test_the_bill_can_move_to_another_customer(): void
@@ -237,7 +237,7 @@ class BillEditTest extends TestCase
 
         $this->postJson("/api/admin/bills/{$bill['id']}/cancel", ['reason' => 'Wrong customer'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['refund.method' => '₹500.00 was paid on this bill. Choose how it is given back.']);
+            ->assertJsonValidationErrors(['refund.method' => '₹500 was paid on this bill. Choose how it is given back.']);
 
         $this->postJson("/api/admin/bills/{$bill['id']}/cancel", ['reason' => 'Wrong customer', 'refund' => ['method' => 'cash']])
             ->assertOk()
@@ -254,7 +254,7 @@ class BillEditTest extends TestCase
         $this->getJson('/api/admin/customers/lookup?mobile=9876543210')
             ->assertJsonPath('data.total_due', 0)
             ->assertJsonPath('data.bills_count', 1);
-        $this->assertStringStartsWith("Cancelled bill {$bill['bill_number']} for Ramesh Kumar (₹1,050.00); ₹500.00 given back by Cash", ActivityLog::latest('id')->first()->description);
+        $this->assertStringStartsWith("Cancelled bill {$bill['bill_number']} for Ramesh Kumar (₹1,050); ₹500 given back by Cash", ActivityLog::latest('id')->first()->description);
 
         // Nothing more can happen to it.
         $this->postJson("/api/admin/bills/{$bill['id']}/cancel", ['reason' => 'Again'])

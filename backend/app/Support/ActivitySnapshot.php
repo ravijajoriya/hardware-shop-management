@@ -10,7 +10,7 @@ use App\Models\User;
 
 /**
  * Records as the activity log keeps them: each field's label and value written the way people
- * read it (₹380.00, 2.5 kg, Yes), so old entries stay readable whatever changes later.
+ * read it (₹380, 2.5 kg, Yes), so old entries stay readable whatever changes later.
  * Compare two snapshots with ActivityChanges::between().
  */
 final class ActivitySnapshot
@@ -87,7 +87,7 @@ final class ActivitySnapshot
     }
 
     /**
-     * A bill's customer details, each line ("Claw Hammer: 2 pc × ₹350.00 = ₹700.00") and total.
+     * A bill's customer details, each line ("Claw Hammer: 2 pc × ₹350 = ₹700") and total.
      *
      * @return array<string, array{label: string, value: string|null}>
      */

@@ -1,4 +1,9 @@
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
+const wholeMoney = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+})
 
 // Quantities keep up to three decimals and drop trailing zeros: 12.5 kg, 3 pc.
 const quantity = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 3 })
@@ -13,8 +18,12 @@ const dateTime = new Intl.DateTimeFormat('en-IN', {
   minute: '2-digit',
 })
 
+// Paise appear only when there are some: ₹1,500 and ₹320.50. Display only; amounts keep
+// their paise everywhere else.
 export function formatMoney(value) {
-  return money.format(value ?? 0)
+  const paise = Math.round(Number(value ?? 0) * 100)
+
+  return (paise % 100 === 0 ? wholeMoney : money).format(paise / 100)
 }
 
 export function formatQuantity(value, unit) {

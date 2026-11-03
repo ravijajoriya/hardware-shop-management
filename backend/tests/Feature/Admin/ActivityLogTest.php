@@ -145,7 +145,7 @@ class ActivityLogTest extends TestCase
         $this->assertSame(['brand.created', 'product.created'], $this->actions());
         $this->assertSame('Added product Wall Paint', $this->last()->description);
         $this->assertContains(['field' => 'Brand', 'old' => null, 'new' => 'Asian Paints'], $this->last()->changes);
-        $this->assertContains(['field' => 'Selling price (1 L)', 'old' => null, 'new' => '₹360.00'], $this->last()->changes);
+        $this->assertContains(['field' => 'Selling price (1 L)', 'old' => null, 'new' => '₹360'], $this->last()->changes);
         $this->assertContains(['field' => 'Stock (1 L)', 'old' => null, 'new' => '10 pc'], $this->last()->changes);
 
         $this->putJson("/api/admin/products/{$product['id']}", [
@@ -160,13 +160,13 @@ class ActivityLogTest extends TestCase
 
         $updated = $this->last();
         $this->assertSame('product.updated', $updated->action->value);
-        $this->assertStringStartsWith('Changed product Wall Paint: Selling price (1 L) ₹360.00 → ₹380.00, ', $updated->description);
-        $this->assertContains(['field' => 'Selling price (4 L)', 'old' => null, 'new' => '₹1,350.00'], $updated->changes);
+        $this->assertStringStartsWith('Changed product Wall Paint: Selling price (1 L) ₹360 → ₹380, ', $updated->description);
+        $this->assertContains(['field' => 'Selling price (4 L)', 'old' => null, 'new' => '₹1,350'], $updated->changes);
         $this->assertContains(['field' => 'Stock (4 L)', 'old' => null, 'new' => '4 pc'], $updated->changes);
 
         $this->deleteJson("/api/admin/products/{$product['id']}")->assertNoContent();
         $this->assertSame('Deleted product Wall Paint', $this->last()->description);
-        $this->assertContains(['field' => 'Selling price (1 L)', 'old' => '₹380.00', 'new' => null], $this->last()->changes);
+        $this->assertContains(['field' => 'Selling price (1 L)', 'old' => '₹380', 'new' => null], $this->last()->changes);
     }
 
     public function test_photo_changes_are_logged(): void
@@ -200,33 +200,33 @@ class ActivityLogTest extends TestCase
         $this->assertSame(['customer.created', 'bill.created'], $this->actions());
         $this->assertSame('Added customer Ramesh Kumar (98765 43210)', ActivityLog::orderBy('id')->first()->description);
         $bill = $this->last();
-        $this->assertSame("Made bill INV-{$year}-0001 for Ramesh Kumar: ₹700.00, ₹300.00 paid, ₹400.00 due", $bill->description);
+        $this->assertSame("Made bill INV-{$year}-0001 for Ramesh Kumar: ₹700, ₹300 paid, ₹400 due", $bill->description);
         $this->assertSame(['bill', $first['id'], "INV-{$year}-0001"], [$bill->subject_type, $bill->subject_id, $bill->subject_label]);
         $this->assertSame([
             ['label' => 'Customer', 'value' => 'Ramesh Kumar · 98765 43210 · MG Road, Jaipur'],
-            ['label' => 'Items', 'value' => ['Claw Hammer: 2 pc × ₹350.00 = ₹700.00']],
-            ['label' => 'Paid', 'value' => ['Cash ₹200.00', 'UPI ₹100.00 (UPI123456)']],
-            ['label' => 'Due', 'value' => '₹400.00'],
+            ['label' => 'Items', 'value' => ['Claw Hammer: 2 pc × ₹350 = ₹700']],
+            ['label' => 'Paid', 'value' => ['Cash ₹200', 'UPI ₹100 (UPI123456)']],
+            ['label' => 'Due', 'value' => '₹400'],
         ], $bill->details);
 
         // A known number with a new name: the customer is changed, then the bill made.
         $this->postBill('Ramesh K', '9876543210', [[$hammer, 1]])->assertCreated();
         $this->assertSame(['customer.updated', 'bill.created'], array_slice($this->actions(), -2));
         $this->assertSame('Changed customer Ramesh K: Name Ramesh Kumar → Ramesh K', ActivityLog::orderByDesc('id')->skip(1)->first()->description);
-        $this->assertSame("Made bill INV-{$year}-0002 for Ramesh K: ₹350.00, all due", $this->last()->description);
+        $this->assertSame("Made bill INV-{$year}-0002 for Ramesh K: ₹350, all due", $this->last()->description);
 
         $this->postJson("/api/admin/bills/{$first['id']}/payments", ['method' => 'upi', 'amount' => 100])->assertOk();
-        $this->assertSame("Received ₹100.00 by UPI on bill INV-{$year}-0001: ₹300.00 still due", $this->last()->description);
+        $this->assertSame("Received ₹100 by UPI on bill INV-{$year}-0001: ₹300 still due", $this->last()->description);
 
         $customerId = $first['customer']['id'];
         $this->postJson("/api/admin/customers/{$customerId}/payments", ['method' => 'cash', 'amount' => 650, 'reference' => null])->assertOk();
         $dues = $this->last();
-        $this->assertSame('Received ₹650.00 by Cash from Ramesh K towards dues', $dues->description);
+        $this->assertSame('Received ₹650 by Cash from Ramesh K towards dues', $dues->description);
         $this->assertSame(['customer', $customerId], [$dues->subject_type, $dues->subject_id]);
         $this->assertSame([
-            ['label' => 'Payment', 'value' => 'Cash ₹650.00'],
-            ['label' => 'Put towards', 'value' => ["INV-{$year}-0001: ₹300.00", "INV-{$year}-0002: ₹350.00"]],
-            ['label' => 'Still due', 'value' => '₹0.00'],
+            ['label' => 'Payment', 'value' => 'Cash ₹650'],
+            ['label' => 'Put towards', 'value' => ["INV-{$year}-0001: ₹300", "INV-{$year}-0002: ₹350"]],
+            ['label' => 'Still due', 'value' => '₹0'],
         ], $dues->details);
 
         // A bill that is refused leaves nothing behind.
@@ -248,11 +248,11 @@ class ActivityLogTest extends TestCase
             'items' => [['product_variant_id' => $hammer->id, 'quantity' => 20, 'purchase_price' => 310]],
         ])->assertCreated()->json('data');
 
-        $this->assertSame('Stock in from Sharma Traders (bill ST-4512): 1 item, ₹6,200.00', $this->last()->description);
+        $this->assertSame('Stock in from Sharma Traders (bill ST-4512): 1 item, ₹6,200', $this->last()->description);
         $this->assertSame(['stock_entry', $entry['id'], 'Stock in from Sharma Traders'], [$this->last()->subject_type, $this->last()->subject_id, $this->last()->subject_label]);
         $this->assertSame([
             ['label' => 'Received on', 'value' => $today->format('j M Y')],
-            ['label' => 'Items', 'value' => ['Claw Hammer: 20 pc at ₹310.00, average cost ₹280.00 → ₹300.00']],
+            ['label' => 'Items', 'value' => ['Claw Hammer: 20 pc at ₹310, average cost ₹280 → ₹300']],
         ], $this->last()->details);
 
         $this->postJson("/api/admin/product-variants/{$hammer->id}/stock-corrections", ['quantity' => 28, 'reason' => 'damaged', 'note' => 'Two cracked'])->assertCreated();
@@ -264,7 +264,7 @@ class ActivityLogTest extends TestCase
             'Deleted stock in from Sharma Traders (bill ST-4512) received '.$today->format('j M Y').'; its stock was taken back out',
             $this->last()->description,
         );
-        $this->assertSame([['label' => 'Items', 'value' => ['Claw Hammer: −20 pc, purchase price back to ₹280.00']]], $this->last()->details);
+        $this->assertSame([['label' => 'Items', 'value' => ['Claw Hammer: −20 pc, purchase price back to ₹280']]], $this->last()->details);
     }
 
     public function test_the_log_is_filtered_by_admin_section_day_and_search(): void

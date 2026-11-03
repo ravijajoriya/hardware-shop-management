@@ -78,7 +78,7 @@ class BillReturnTest extends TestCase
         // The next one is worth more than the ₹100 still due, so ₹250 has to go back.
         $this->giveBack($bill, 1)
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['refund.method' => '₹250.00 has to be given back. Choose how.']);
+            ->assertJsonValidationErrors(['refund.method' => '₹250 has to be given back. Choose how.']);
 
         $this->giveBack($bill, 1, ['refund' => ['method' => 'cash']])
             ->assertOk()
@@ -92,7 +92,7 @@ class BillReturnTest extends TestCase
             ->assertJsonPath('data.refunds.0.reason', ['value' => 'return', 'label' => 'Items returned']);
 
         $this->assertSame(
-            "Took back items worth ₹350.00 on bill {$bill['bill_number']} (RET-{$year}-0002): ₹100.00 off the due, ₹250.00 given back by Cash",
+            "Took back items worth ₹350 on bill {$bill['bill_number']} (RET-{$year}-0002): ₹100 off the due, ₹250 given back by Cash",
             ActivityLog::latest('id')->first()->description,
         );
 
