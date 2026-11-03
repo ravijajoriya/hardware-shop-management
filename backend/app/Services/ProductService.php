@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Unit;
 use App\Repositories\ProductRepository;
 use App\Repositories\UnitRepository;
+use App\Support\ActivityChanges;
+use App\Support\ActivitySnapshot;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Arr;
@@ -23,6 +26,7 @@ class ProductService
         private readonly BrandService $brands,
         private readonly UnitRepository $units,
         private readonly ProductLocationService $locations,
+        private readonly ActivityLogService $activity,
         private readonly SlugService $slugs,
     ) {}
 
@@ -80,6 +84,13 @@ class ProductService
             $product = $this->products->create(Arr::except($data, 'variants'));
             $this->products->syncVariants($product, $data['variants']);
 
+            $this->activity->record(
+                ActivityAction::ProductCreated,
+                "Added product {$product->name}",
+                $product,
+                ActivityChanges::between([], ActivitySnapshot::product($product)),
+            );
+
             return $this->products->loadDetails($product);
         });
     }
@@ -103,10 +114,24 @@ class ProductService
         $data['slug'] = $this->resolveSlug($data, $product);
         $data = $this->locations->withCode($data);
 
-        return DB::transaction(function () use ($product, $data) {
+        $before = ActivitySnapshot::product($product);
+
+        return DB::transaction(function () use ($product, $data, $before) {
             $data = $this->withNewBrand($data);
             $this->products->update($product, Arr::except($data, 'variants'));
             $this->products->syncVariants($product, $data['variants']);
+
+            $changes = ActivityChanges::between($before, ActivitySnapshot::product($product));
+
+            // Saving without changing anything is not worth an entry.
+            if ($changes) {
+                $this->activity->record(
+                    ActivityAction::ProductUpdated,
+                    "Changed product {$product->name}: ".ActivityChanges::summary($changes),
+                    $product,
+                    $changes,
+                );
+            }
 
             return $this->products->loadDetails($product);
         });
@@ -115,9 +140,19 @@ class ProductService
     public function delete(Product $product): void
     {
         $imagePaths = $this->productImages->pathsFor($product);
+        $before = ActivitySnapshot::product($product);
 
-        // The product's variants and image rows are deleted with it.
-        $this->products->delete($product);
+        DB::transaction(function () use ($product, $before) {
+            // The product's variants and image rows are deleted with it.
+            $this->products->delete($product);
+
+            $this->activity->record(
+                ActivityAction::ProductDeleted,
+                "Deleted product {$product->name}",
+                $product,
+                ActivityChanges::between($before, []),
+            );
+        });
 
         $this->productImages->deleteFiles($imagePaths);
     }

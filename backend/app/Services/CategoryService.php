@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\Category;
 use App\Repositories\CategoryRepository;
+use App\Support\ActivityChanges;
+use App\Support\ActivitySnapshot;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CategoryService
@@ -12,6 +16,7 @@ class CategoryService
     public function __construct(
         private readonly CategoryRepository $categories,
         private readonly SlugService $slugs,
+        private readonly ActivityLogService $activity,
     ) {}
 
     /**
@@ -75,7 +80,18 @@ class CategoryService
     {
         $data['slug'] = $this->resolveSlug($data);
 
-        return $this->categories->create($data);
+        return DB::transaction(function () use ($data) {
+            $category = $this->categories->create($data);
+
+            $this->activity->record(
+                ActivityAction::CategoryCreated,
+                "Added category {$category->name}",
+                $category,
+                ActivityChanges::between([], ActivitySnapshot::category($category)),
+            );
+
+            return $category;
+        });
     }
 
     /**
@@ -88,8 +104,24 @@ class CategoryService
         $this->ensureParentIsNotDescendant($category, $data['parent_id'] ?? null);
 
         $data['slug'] = $this->resolveSlug($data, $category);
+        $before = ActivitySnapshot::category($category);
 
-        return $this->categories->update($category, $data);
+        return DB::transaction(function () use ($category, $data, $before) {
+            $category = $this->categories->update($category, $data);
+            $changes = ActivityChanges::between($before, ActivitySnapshot::category($category));
+
+            // Saving without changing anything is not worth an entry.
+            if ($changes) {
+                $this->activity->record(
+                    ActivityAction::CategoryUpdated,
+                    "Changed category {$category->name}: ".ActivityChanges::summary($changes),
+                    $category,
+                    $changes,
+                );
+            }
+
+            return $category;
+        });
     }
 
     /**
@@ -109,7 +141,18 @@ class CategoryService
             ]);
         }
 
-        $this->categories->delete($category);
+        $before = ActivitySnapshot::category($category);
+
+        DB::transaction(function () use ($category, $before) {
+            $this->categories->delete($category);
+
+            $this->activity->record(
+                ActivityAction::CategoryDeleted,
+                "Deleted category {$category->name}",
+                $category,
+                ActivityChanges::between($before, []),
+            );
+        });
     }
 
     /**

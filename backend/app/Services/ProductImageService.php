@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Repositories\ProductImageRepository;
@@ -16,7 +17,10 @@ class ProductImageService
 {
     public const MAX_IMAGES = 10;
 
-    public function __construct(private readonly ProductImageRepository $images) {}
+    public function __construct(
+        private readonly ProductImageRepository $images,
+        private readonly ActivityLogService $activity,
+    ) {}
 
     /**
      * Add photos after the product's existing ones.
@@ -49,6 +53,13 @@ class ProductImageService
                 foreach ($paths as $path) {
                     $this->images->create($product, $path, $position++);
                 }
+
+                $count = count($paths);
+                $this->activity->record(
+                    ActivityAction::ProductImagesAdded,
+                    "Added {$count} ".($count === 1 ? 'photo' : 'photos')." to {$product->name}",
+                    $product,
+                );
             });
         } catch (Throwable $e) {
             // Leave no files behind for rows that were never saved.
@@ -83,7 +94,10 @@ class ProductImageService
             ]);
         }
 
-        DB::transaction(fn () => $this->images->reorder($product, $ids));
+        DB::transaction(function () use ($product, $ids) {
+            $this->images->reorder($product, $ids);
+            $this->activity->record(ActivityAction::ProductImagesReordered, "Changed the order of {$product->name}’s photos", $product);
+        });
 
         return $this->images->allFor($product);
     }
@@ -93,7 +107,11 @@ class ProductImageService
      */
     public function delete(Product $product, ProductImage $image): Collection
     {
-        $this->images->delete($image);
+        DB::transaction(function () use ($product, $image) {
+            $this->images->delete($image);
+            $this->activity->record(ActivityAction::ProductImageRemoved, "Removed a photo from {$product->name}", $product);
+        });
+
         $this->deleteFiles([$image->path]);
 
         return $this->images->allFor($product);

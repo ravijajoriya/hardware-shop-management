@@ -66,6 +66,11 @@ export const glossary = {
     meaning:
       'The slip that comes with goods from a supplier, listing what was sent. Its number, or the supplier’s bill number, helps you find this delivery later.',
   },
+  IP: {
+    full: 'Internet Protocol address',
+    meaning:
+      'The internet address the action came from. Your shop’s Wi-Fi usually shows the same one each time; an address you do not know can mean someone used the app from somewhere else.',
+  },
   'List price': {
     full: null,
     meaning:

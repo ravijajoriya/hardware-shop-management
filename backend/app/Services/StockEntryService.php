@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\StockEntry;
 use App\Models\StockEntryItem;
 use App\Models\User;
 use App\Repositories\ProductVariantRepository;
 use App\Repositories\StockEntryRepository;
+use App\Support\ActivitySnapshot;
 use App\Support\Money;
 use App\Support\StockCost;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,6 +20,7 @@ class StockEntryService
     public function __construct(
         private readonly StockEntryRepository $entries,
         private readonly ProductVariantRepository $variants,
+        private readonly ActivityLogService $activity,
     ) {}
 
     /**
@@ -64,6 +67,8 @@ class StockEntryService
                 'created_by' => $admin->id,
             ]);
 
+            $logged = [];
+
             foreach ($lines as $line) {
                 $variant = $this->variants->lockForStock($line['variant']);
                 $stock = (float) $variant->stock_quantity;
@@ -76,7 +81,24 @@ class StockEntryService
                     'cost_before' => $costBefore,
                     'cost_after' => $cost,
                 ]);
+
+                $logged[] = $this->itemName($line['item']).': '.ActivitySnapshot::quantity($line['quantity'], $line['item']['unit'])
+                    .' at '.Money::format($line['price']).', average cost '
+                    .(ActivitySnapshot::money($costBefore) ?? '—').' → '.ActivitySnapshot::money($cost);
             }
+
+            $count = count($lines);
+            $this->activity->record(
+                ActivityAction::StockEntryCreated,
+                $this->title($entry).": {$count} ".($count === 1 ? 'item' : 'items').', '.Money::format(Money::toPaise($entry->total)),
+                $entry,
+                details: [
+                    ['label' => 'Received on', 'value' => $entry->received_on->format('j M Y')],
+                    ['label' => 'Items', 'value' => $logged],
+                    ['label' => 'Note', 'value' => $entry->note],
+                ],
+                actor: $admin,
+            );
 
             return $entry;
         });
@@ -92,17 +114,32 @@ class StockEntryService
     public function delete(StockEntry $entry): void
     {
         DB::transaction(function () use ($entry) {
+            $logged = [];
+
             foreach ($this->entries->loadDetails($entry)->items as $item) {
                 if (! $item->variant) {
+                    $logged[] = "{$this->itemName($item->toArray())}: product already deleted, no stock to take out";
+
                     continue;
                 }
 
                 $variant = $this->variants->lockForStock($item->variant);
                 $stock = (float) $variant->stock_quantity;
                 $quantity = (float) $item->quantity;
+                $cost = $this->costWithout($item, $variant->purchase_price, $stock);
 
-                $this->variants->updateStock($variant, round($stock - $quantity, 3), $this->costWithout($item, $variant->purchase_price, $stock));
+                $this->variants->updateStock($variant, round($stock - $quantity, 3), $cost);
+
+                $logged[] = "{$this->itemName($item->toArray())}: −".ActivitySnapshot::quantity($quantity, $item->unit)
+                    .', purchase price back to '.(ActivitySnapshot::money($cost) ?? '—');
             }
+
+            $this->activity->record(
+                ActivityAction::StockEntryDeleted,
+                'Deleted '.lcfirst($this->title($entry)).' received '.$entry->received_on->format('j M Y').'; its stock was taken back out',
+                $entry,
+                details: [['label' => 'Items', 'value' => $logged]],
+            );
 
             $this->entries->delete($entry);
         });
@@ -176,6 +213,24 @@ class StockEntryService
         }
 
         return $lines;
+    }
+
+    /**
+     * "Stock in from Sharma Traders (bill ST-4512)", or just "Stock in".
+     */
+    private function title(StockEntry $entry): string
+    {
+        return 'Stock in'
+            .($entry->supplier_name ? " from {$entry->supplier_name}" : '')
+            .($entry->supplier_bill_number ? " (bill {$entry->supplier_bill_number})" : '');
+    }
+
+    /**
+     * @param  array{product_name: string, variant_name?: string|null}  $item
+     */
+    private function itemName(array $item): string
+    {
+        return ($item['variant_name'] ?? null) ? "{$item['product_name']} ({$item['variant_name']})" : $item['product_name'];
     }
 
     private function paise(?string $rupees): ?int

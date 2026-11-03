@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\Brand;
 use App\Repositories\BrandRepository;
+use App\Support\ActivityChanges;
+use App\Support\ActivitySnapshot;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class BrandService
@@ -12,6 +16,7 @@ class BrandService
     public function __construct(
         private readonly BrandRepository $brands,
         private readonly SlugService $slugs,
+        private readonly ActivityLogService $activity,
     ) {}
 
     /**
@@ -29,7 +34,19 @@ class BrandService
     {
         $data['slug'] = $this->resolveSlug($data);
 
-        return $this->brands->create($data);
+        // Also used for a brand typed into the product form, inside the product's transaction.
+        return DB::transaction(function () use ($data) {
+            $brand = $this->brands->create($data);
+
+            $this->activity->record(
+                ActivityAction::BrandCreated,
+                "Added brand {$brand->name}",
+                $brand,
+                ActivityChanges::between([], ActivitySnapshot::brand($brand)),
+            );
+
+            return $brand;
+        });
     }
 
     /**
@@ -38,8 +55,24 @@ class BrandService
     public function update(Brand $brand, array $data): Brand
     {
         $data['slug'] = $this->resolveSlug($data, $brand);
+        $before = ActivitySnapshot::brand($brand);
 
-        return $this->brands->update($brand, $data);
+        return DB::transaction(function () use ($brand, $data, $before) {
+            $brand = $this->brands->update($brand, $data);
+            $changes = ActivityChanges::between($before, ActivitySnapshot::brand($brand));
+
+            // Saving without changing anything is not worth an entry.
+            if ($changes) {
+                $this->activity->record(
+                    ActivityAction::BrandUpdated,
+                    "Changed brand {$brand->name}: ".ActivityChanges::summary($changes),
+                    $brand,
+                    $changes,
+                );
+            }
+
+            return $brand;
+        });
     }
 
     /**
@@ -53,7 +86,18 @@ class BrandService
             ]);
         }
 
-        $this->brands->delete($brand);
+        $before = ActivitySnapshot::brand($brand);
+
+        DB::transaction(function () use ($brand, $before) {
+            $this->brands->delete($brand);
+
+            $this->activity->record(
+                ActivityAction::BrandDeleted,
+                "Deleted brand {$brand->name}",
+                $brand,
+                ActivityChanges::between($before, []),
+            );
+        });
     }
 
     /**

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AdminLayout from '../layouts/AdminLayout.vue'
+import ActivityLogView from '../views/ActivityLogView.vue'
 import BillDetailView from '../views/BillDetailView.vue'
 import BillFormView from '../views/BillFormView.vue'
 import BillsView from '../views/BillsView.vue'
@@ -116,6 +117,11 @@ const router = createRouter({
           path: 'brands',
           name: 'brands',
           component: BrandsView,
+        },
+        {
+          path: 'activity',
+          name: 'activity',
+          component: ActivityLogView,
         },
       ],
     },

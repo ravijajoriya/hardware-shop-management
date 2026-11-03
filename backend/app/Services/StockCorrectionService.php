@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\ProductVariant;
 use App\Models\StockCorrection;
 use App\Models\User;
 use App\Repositories\ProductVariantRepository;
 use App\Repositories\StockCorrectionRepository;
+use App\Support\ActivitySnapshot;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,6 +17,7 @@ class StockCorrectionService
     public function __construct(
         private readonly StockCorrectionRepository $corrections,
         private readonly ProductVariantRepository $variants,
+        private readonly ActivityLogService $activity,
     ) {}
 
     /**
@@ -47,7 +50,7 @@ class StockCorrectionService
 
             $this->variants->setStock($variant, $after);
 
-            return $this->corrections->create([
+            $correction = $this->corrections->create([
                 'product_id' => $variant->product_id,
                 'product_variant_id' => $variant->id,
                 'product_name' => $variant->product->name,
@@ -59,6 +62,21 @@ class StockCorrectionService
                 'note' => $data['note'] ?? null,
                 'created_by' => $admin->id,
             ]);
+
+            $name = $variant->product->name.($variant->name ? " ({$variant->name})" : '');
+            $this->activity->record(
+                ActivityAction::StockCorrected,
+                "Corrected stock of {$name}: ".ActivitySnapshot::quantity($before, $unit->short_name)
+                    .' → '.ActivitySnapshot::quantity($after, $unit->short_name)." ({$correction->reason->label()})",
+                $variant->product,
+                details: [
+                    ['label' => 'Why', 'value' => $correction->reason->label()],
+                    ['label' => 'Note', 'value' => $correction->note],
+                ],
+                actor: $admin,
+            );
+
+            return $correction;
         });
     }
 }

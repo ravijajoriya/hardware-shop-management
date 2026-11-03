@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BillController;
 use App\Http\Controllers\Admin\BrandController;
@@ -24,6 +25,10 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+
+        // Read-only: entries are written by the actions themselves and never changed.
+        Route::get('/activity-logs/options', [ActivityLogController::class, 'options']);
+        Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 
         Route::apiResource('categories', CategoryController::class);
         Route::apiResource('brands', BrandController::class);

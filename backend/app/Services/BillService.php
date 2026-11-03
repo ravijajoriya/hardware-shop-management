@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Enums\BillStatus;
 use App\Enums\PaymentMethod;
 use App\Models\Bill;
@@ -9,6 +10,8 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use App\Repositories\BillRepository;
 use App\Repositories\ProductVariantRepository;
+use App\Support\ActivitySnapshot;
+use App\Support\MobileNumber;
 use App\Support\Money;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,6 +25,7 @@ class BillService
         private readonly BillRepository $bills,
         private readonly ProductVariantRepository $variants,
         private readonly CustomerService $customers,
+        private readonly ActivityLogService $activity,
     ) {}
 
     /**
@@ -101,6 +105,25 @@ class BillService
                 ]);
             }
 
+            $this->activity->record(
+                ActivityAction::BillCreated,
+                "Made bill {$bill->bill_number} for {$bill->customer_name}: ".$this->amountsLine($total, $paid),
+                $bill,
+                details: [
+                    ['label' => 'Customer', 'value' => implode(' · ', array_filter([
+                        $bill->customer_name, MobileNumber::format($bill->customer_mobile), $bill->customer_address,
+                    ]))],
+                    ['label' => 'Items', 'value' => array_map(fn (array $line) => $this->itemLine($line), $lines)],
+                    ['label' => 'Paid', 'value' => array_map(fn (array $payment) => $this->paymentLine(
+                        PaymentMethod::from($payment['method']),
+                        Money::toPaise($payment['amount']),
+                        $payment['reference'] ?? null,
+                    ), $payments)],
+                    ['label' => 'Due', 'value' => $total > $paid ? Money::format($total - $paid) : null],
+                ],
+                actor: $admin,
+            );
+
             return $bill;
         });
 
@@ -132,7 +155,25 @@ class BillService
                 ]);
             }
 
-            return $this->spread($bills, $left, PaymentMethod::from($data['method']), $data['reference'] ?? null, $admin);
+            $method = PaymentMethod::from($data['method']);
+            $spread = $this->spread($bills, $left, $method, $data['reference'] ?? null, $admin);
+
+            $this->activity->record(
+                ActivityAction::DuesPaymentReceived,
+                'Received '.Money::format($left).' by '.$method->label()." from {$customer->name} towards dues",
+                $customer,
+                details: [
+                    ['label' => 'Payment', 'value' => $this->paymentLine($method, $left, $data['reference'] ?? null)],
+                    ['label' => 'Put towards', 'value' => array_map(
+                        fn (array $part) => "{$part['bill_number']}: ".Money::format(Money::toPaise($part['amount'])),
+                        $spread,
+                    )],
+                    ['label' => 'Still due', 'value' => Money::format($owed - $left)],
+                ],
+                actor: $admin,
+            );
+
+            return $spread;
         });
     }
 
@@ -162,10 +203,61 @@ class BillService
                 ]);
             }
 
-            $this->spread(new Collection([$locked]), $amount, PaymentMethod::from($data['method']), $data['reference'] ?? null, $admin);
+            $method = PaymentMethod::from($data['method']);
+            $this->spread(new Collection([$locked]), $amount, $method, $data['reference'] ?? null, $admin);
+            $left = Money::toPaise($locked->due_amount);
+
+            $this->activity->record(
+                ActivityAction::BillPaymentReceived,
+                'Received '.Money::format($amount).' by '.$method->label()." on bill {$locked->bill_number}: "
+                    .($left > 0 ? Money::format($left).' still due' : 'now paid in full'),
+                $locked,
+                details: [
+                    ['label' => 'Customer', 'value' => $locked->customer_name],
+                    ['label' => 'Payment', 'value' => $this->paymentLine($method, $amount, $data['reference'] ?? null)],
+                    ['label' => 'Still due on the bill', 'value' => Money::format($left)],
+                ],
+                actor: $admin,
+            );
         });
 
         return $this->details($bill->refresh());
+    }
+
+    /**
+     * "₹4,320.00, ₹500.00 paid, ₹3,820.00 due", "₹865.00, paid in full" or "₹350.00, all due".
+     */
+    private function amountsLine(int $total, int $paid): string
+    {
+        $amount = Money::format($total);
+
+        return match (true) {
+            $paid >= $total => "{$amount}, paid in full",
+            $paid === 0 => "{$amount}, all due",
+            default => "{$amount}, ".Money::format($paid).' paid, '.Money::format($total - $paid).' due',
+        };
+    }
+
+    /**
+     * "Wire Nails (2 inch): 1.5 kg × ₹110.00 = ₹165.00"
+     *
+     * @param  array<string, mixed>  $line
+     */
+    private function itemLine(array $line): string
+    {
+        $item = $line['item'];
+        $name = $item['variant_name'] ? "{$item['product_name']} ({$item['variant_name']})" : $item['product_name'];
+
+        return "{$name}: ".ActivitySnapshot::quantity($item['quantity'], $item['unit'])
+            .' × '.ActivitySnapshot::money($item['price']).' = '.Money::format($line['line_total']);
+    }
+
+    /**
+     * "UPI ₹300.00 (UPI778899)"
+     */
+    private function paymentLine(PaymentMethod $method, int $amount, ?string $reference): string
+    {
+        return $method->label().' '.Money::format($amount).($reference ? " ({$reference})" : '');
     }
 
     private function spread(Collection $bills, int $left, PaymentMethod $method, ?string $reference, User $admin): array

@@ -56,6 +56,7 @@ async function logout() {
         </RouterLink>
         <RouterLink :to="{ name: 'categories' }">Categories</RouterLink>
         <RouterLink :to="{ name: 'brands' }">Brands</RouterLink>
+        <RouterLink :to="{ name: 'activity' }">Activity log</RouterLink>
       </nav>
 
       <div class="account">
