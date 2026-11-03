@@ -137,6 +137,25 @@
             color: #b42318;
         }
 
+        .cancelled {
+            margin-top: 10pt;
+            padding: 6pt 9pt;
+            color: #b42318;
+            border: 2px solid #b42318;
+        }
+
+        .cancelled strong {
+            letter-spacing: 1pt;
+        }
+
+        .returns {
+            margin-top: 12pt;
+        }
+
+        .returns td {
+            padding: 2pt 0;
+        }
+
         .thanks {
             margin-top: 26pt;
             text-align: center;
@@ -229,10 +248,22 @@
                         <td>Total</td>
                         <td class="amount">{{ $bill['total'] }}</td>
                     </tr>
+                    @if ($bill['returned'])
+                        <tr>
+                            <td>Returned</td>
+                            <td class="amount">−{{ $bill['returned'] }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <td>Paid</td>
                         <td class="amount">{{ $bill['paid'] }}</td>
                     </tr>
+                    @if ($bill['refunded'])
+                        <tr>
+                            <td>Refunded</td>
+                            <td class="amount">−{{ $bill['refunded'] }}</td>
+                        </tr>
+                    @endif
                     <tr class="{{ $bill['owing'] ? 'owing' : '' }}">
                         <td>Due</td>
                         <td class="amount">{{ $bill['due'] }}</td>
@@ -241,6 +272,28 @@
             </td>
         </tr>
     </table>
+
+    @if ($bill['returns'])
+        <div class="returns">
+            <div class="label">Returns</div>
+            <table>
+                @foreach ($bill['returns'] as $return)
+                    <tr>
+                        <td>{{ $return['number'] }}</td>
+                        <td class="muted">{{ $return['date'] }}</td>
+                        <td>{{ implode(', ', $return['items']) }}</td>
+                        <td class="right">−{{ $return['amount'] }}</td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endif
+
+    @if ($bill['cancelled'])
+        <div class="cancelled">
+            <strong>CANCELLED</strong> on {{ $bill['cancelled']['date'] }}@if ($bill['cancelled']['reason']): {{ $bill['cancelled']['reason'] }}@endif
+        </div>
+    @endif
 
     <div class="thanks">Thank you for shopping with us!</div>
 </body>

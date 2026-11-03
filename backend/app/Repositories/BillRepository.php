@@ -5,11 +5,11 @@ namespace App\Repositories;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\BillPayment;
+use App\Models\BillRefund;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
 
 class BillRepository
 {
@@ -49,9 +49,20 @@ class BillRepository
             ->withQueryString();
     }
 
+    /**
+     * Everything the bill page shows. Each line's size and unit come too, for editing.
+     */
     public function loadDetails(Bill $bill): Bill
     {
-        return $bill->load(['items', 'payments']);
+        return $bill->load([
+            'items.variant.product.unit',
+            'payments',
+            'returns.items',
+            'returns.refund',
+            'refunds',
+            'editor:id,name',
+            'canceller:id,name',
+        ]);
     }
 
     /**
@@ -79,26 +90,49 @@ class BillRepository
     }
 
     /**
-     * @param  array{paid_amount: float, due_amount: float, status: mixed}  $amounts
+     * @param  array<string, mixed>  $attributes
      */
-    public function updateAmounts(Bill $bill, array $amounts): void
+    public function addRefund(Bill $bill, array $attributes): BillRefund
     {
-        $bill->update($amounts);
+        return $bill->refunds()->create($attributes);
     }
 
     /**
-     * The customer's bills that still have money due, oldest first, locked while a payment is spread over them.
+     * @param  array<string, mixed>  $attributes  Such as the amounts from BillAmounts::columns().
+     */
+    public function update(Bill $bill, array $attributes): void
+    {
+        $bill->update($attributes);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateItem(BillItem $item, array $attributes): void
+    {
+        $item->update($attributes);
+    }
+
+    public function deleteItem(BillItem $item): void
+    {
+        $item->delete();
+    }
+
+    /**
+     * The bill read afresh with its lines, and locked until the transaction ends, so two
+     * changes to it at once cannot both go by the same amounts.
+     */
+    public function lock(Bill $bill): Bill
+    {
+        return Bill::whereKey($bill->getKey())->lockForUpdate()->firstOrFail()->load('items.variant.product.unit');
+    }
+
+    /**
+     * The customer's bills that still have money due, oldest first, locked while a payment
+     * is spread over them.
      *
      * @return Collection<int, Bill>
      */
-    /**
-     * The bill read afresh and locked until the transaction ends.
-     */
-    public function lockForPayment(Bill $bill): Bill
-    {
-        return Bill::whereKey($bill->getKey())->lockForUpdate()->firstOrFail();
-    }
-
     public function unpaidFor(User $customer): Collection
     {
         return Bill::where('customer_id', $customer->id)
@@ -107,37 +141,6 @@ class BillRepository
             ->orderBy('id')
             ->lockForUpdate()
             ->get();
-    }
-
-    /**
-     * How many bills were made in the period and what they came to.
-     *
-     * @return array{count: int, total: float}
-     */
-    public function salesBetween(Carbon $from, Carbon $to): array
-    {
-        $row = Bill::whereBetween('created_at', [$from, $to])
-            ->selectRaw('COUNT(*) AS bill_count, COALESCE(SUM(total), 0) AS total')
-            ->toBase()
-            ->first();
-
-        return ['count' => (int) $row->bill_count, 'total' => (float) $row->total];
-    }
-
-    /**
-     * Money received in the period, by payment method: ['cash' => 1200.0, 'upi' => 800.0].
-     *
-     * @return array<string, float>
-     */
-    public function collectedBetween(Carbon $from, Carbon $to): array
-    {
-        return BillPayment::whereBetween('received_at', [$from, $to])
-            ->groupBy('method')
-            ->selectRaw('method, SUM(amount) AS total')
-            ->toBase()
-            ->pluck('total', 'method')
-            ->map(fn ($total) => (float) $total)
-            ->all();
     }
 
     /**

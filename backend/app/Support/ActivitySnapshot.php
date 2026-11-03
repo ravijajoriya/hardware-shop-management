@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Bill;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
@@ -82,6 +83,34 @@ final class ActivitySnapshot
             'description' => ['Description', $brand->description],
             'active' => ['Active', self::yesNo($brand->is_active)],
         ]);
+    }
+
+    /**
+     * A bill's customer details, each line ("Claw Hammer: 2 pc × ₹350.00 = ₹700.00") and total.
+     *
+     * @return array<string, array{label: string, value: string|null}>
+     */
+    public static function bill(Bill $bill): array
+    {
+        // Reloaded, so a snapshot taken after an edit sees the saved lines.
+        $bill->load('items');
+
+        $fields = [
+            'customer_name' => ['Customer name', $bill->customer_name],
+            'customer_mobile' => ['Mobile', MobileNumber::format($bill->customer_mobile)],
+            'customer_address' => ['Address', $bill->customer_address],
+        ];
+
+        foreach ($bill->items as $item) {
+            $fields["item.{$item->id}"] = [
+                $item->variant_name ? "{$item->product_name} ({$item->variant_name})" : $item->product_name,
+                self::quantity($item->quantity, $item->unit).' × '.self::money($item->price).' = '.self::money($item->line_total),
+            ];
+        }
+
+        $fields['total'] = ['Total', self::money($bill->total)];
+
+        return self::fields($fields);
     }
 
     /**

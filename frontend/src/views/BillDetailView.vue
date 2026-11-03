@@ -8,6 +8,7 @@ import {
   billMessage,
   billPaymentReceiptMessage,
   formatMobile,
+  itemName,
   itemQuantity,
   methodLabel,
   statusClass,
@@ -15,7 +16,9 @@ import {
 } from '@/utils/billing'
 import { canShareFile, downloadFile } from '@/utils/files'
 import InfoTip from '@/components/InfoTip.vue'
+import CancelBillDialog from '@/components/CancelBillDialog.vue'
 import ReceivePaymentDialog from '@/components/ReceivePaymentDialog.vue'
+import ReturnItemsDialog from '@/components/ReturnItemsDialog.vue'
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -33,10 +36,76 @@ const notFound = ref(false)
 
 // Set when arriving straight from the new bill form. The note shows once, so it is taken out
 // of the address: a reload or a later visit should not repeat it.
-const justSaved = ref(route.query.saved === '1')
+// "1" for a new bill, "edited" after an edit.
+const justSaved = ref(['1', 'edited'].includes(route.query.saved) ? route.query.saved : null)
 
 if (justSaved.value) {
   router.replace({ query: {} })
+}
+
+// Taking items back, cancelling, and what the last of those did.
+const returning = ref(false)
+const cancelling = ref(false)
+const changeNote = ref('')
+
+// Money in and money given back, in the order it happened.
+const moneyRows = computed(() =>
+  [
+    ...bill.value.payments.map((payment) => ({
+      key: `payment-${payment.id}`,
+      label: payment.method.label,
+      reference: payment.reference,
+      at: payment.received_at,
+      amount: payment.amount,
+    })),
+    ...bill.value.refunds.map((refund) => ({
+      key: `refund-${refund.id}`,
+      label: `Given back · ${refund.method.label}`,
+      reference: refund.reference,
+      at: refund.refunded_at,
+      amount: -refund.amount,
+    })),
+  ].sort((a, b) => new Date(a.at) - new Date(b.at)),
+)
+
+function returnedItems(entry) {
+  return entry.items.map((item) => `${itemName(item)} × ${itemQuantity(item)}`).join(', ')
+}
+
+function afterChange(result, note) {
+  bill.value = result.bill
+  shop.value = result.shop
+  returning.value = false
+  cancelling.value = false
+  received.value = null
+  justSaved.value = null
+  changeNote.value = note
+  // The PDF shows the change, so it is made again.
+  preparePdf()
+}
+
+function onReturned(result) {
+  const entry = result.bill.returns.at(-1)
+  const parts = [
+    entry.due_reduced > 0 ? `${formatMoney(entry.due_reduced)} came off the due` : null,
+    entry.refund_amount > 0
+      ? `${formatMoney(entry.refund_amount)} given back by ${entry.refund?.method.label}`
+      : null,
+  ].filter(Boolean)
+
+  afterChange(
+    result,
+    `Return ${result.returnNumber} is saved and the items are back in stock.${parts.length ? ` ${parts.join('; ')}.` : ''}`,
+  )
+}
+
+function onCancelled(result) {
+  const refund = result.bill.refunds.find((entry) => entry.reason.value === 'cancel')
+
+  afterChange(
+    result,
+    `The bill is cancelled and its items are back in stock.${refund ? ` ${formatMoney(refund.amount)} given back by ${refund.method.label}.` : ''}`,
+  )
 }
 
 const whatsapp = computed(() =>
@@ -69,7 +138,8 @@ function onReceived(result) {
   shop.value = result.shop
   received.value = result.payment
   receiving.value = false
-  justSaved.value = false
+  justSaved.value = null
+  changeNote.value = ''
   // The PDF shows what has been paid, so it is made again.
   preparePdf()
 }
@@ -142,6 +212,7 @@ watch(
   () => props.id,
   () => {
     received.value = null
+    changeNote.value = ''
     load()
   },
   { immediate: true },
@@ -195,10 +266,45 @@ watch(
   </div>
 
   <template v-else-if="bill">
-    <p v-if="justSaved" class="alert-success saved no-print" role="status">
+    <p v-if="justSaved === '1'" class="alert-success saved no-print" role="status">
       Bill {{ bill.bill_number }} is saved. Print it, or send it to {{ bill.customer.name }} on
       WhatsApp.
     </p>
+    <p v-else-if="justSaved === 'edited'" class="alert-success saved no-print" role="status">
+      The changes are saved. Send the bill again if the customer should have the new one.
+    </p>
+    <p v-if="changeNote" class="alert-success saved no-print" role="status">{{ changeNote }}</p>
+
+    <p v-if="bill.cancelled" class="alert-error saved no-print" role="status">
+      Cancelled {{ formatDateTime(bill.cancelled.at)
+      }}{{ bill.cancelled.by ? ` by ${bill.cancelled.by}` : '' }}: {{ bill.cancelled.reason }}
+    </p>
+
+    <div v-if="bill.can.edit || bill.can.return || bill.can.cancel" class="bill-tools no-print">
+      <span class="tools-label">Change this bill:</span>
+      <RouterLink
+        v-if="bill.can.edit"
+        class="btn"
+        :to="{ name: 'bill-edit', params: { id: bill.id } }"
+      >
+        Edit bill
+      </RouterLink>
+      <button v-if="bill.can.return" type="button" class="btn" @click="returning = true">
+        Return items
+      </button>
+      <button
+        v-if="bill.can.cancel"
+        type="button"
+        class="btn cancel-button"
+        @click="cancelling = true"
+      >
+        Cancel bill
+      </button>
+      <span v-if="bill.edited" class="edited">
+        Edited {{ formatDateTime(bill.edited.at)
+        }}{{ bill.edited.by ? ` by ${bill.edited.by}` : '' }}
+      </span>
+    </div>
 
     <article class="sheet">
       <header class="sheet-head">
@@ -210,6 +316,7 @@ watch(
 
         <div class="meta">
           <p class="doc-title">Bill</p>
+          <p v-if="bill.cancelled" class="stamp">Cancelled</p>
           <dl>
             <div>
               <dt>Bill number <InfoTip term="Bill number" class="no-print" /></dt>
@@ -262,14 +369,15 @@ watch(
       <div class="sheet-foot">
         <section class="payments" aria-labelledby="payments-title">
           <h2 id="payments-title">Payments</h2>
-          <ul v-if="bill.payments.length">
-            <li v-for="payment in bill.payments" :key="payment.id">
+          <ul v-if="moneyRows.length">
+            <li v-for="row in moneyRows" :key="row.key" :class="{ out: row.amount < 0 }">
               <span class="how">
-                {{ payment.method.label
-                }}<template v-if="payment.reference">{{ ` · ${payment.reference}` }}</template>
+                {{ row.label }}<template v-if="row.reference">{{ ` · ${row.reference}` }}</template>
               </span>
-              <span class="when">{{ formatDateTime(payment.received_at) }}</span>
-              <strong>{{ formatMoney(payment.amount) }}</strong>
+              <span class="when">{{ formatDateTime(row.at) }}</span>
+              <strong>{{
+                row.amount < 0 ? `−${formatMoney(-row.amount)}` : formatMoney(row.amount)
+              }}</strong>
             </li>
           </ul>
           <p v-else class="none">Nothing paid yet.</p>
@@ -280,9 +388,17 @@ watch(
             <dt>Total</dt>
             <dd>{{ formatMoney(bill.total) }}</dd>
           </div>
+          <div v-if="bill.returned_amount > 0">
+            <dt>Returned</dt>
+            <dd>−{{ formatMoney(bill.returned_amount) }}</dd>
+          </div>
           <div>
             <dt>Paid</dt>
             <dd>{{ formatMoney(bill.paid_amount) }}</dd>
+          </div>
+          <div v-if="bill.refunded_amount > 0">
+            <dt>Given back</dt>
+            <dd>−{{ formatMoney(bill.refunded_amount) }}</dd>
           </div>
           <div class="due" :class="{ owing: bill.due_amount > 0 }">
             <dt>Due <InfoTip term="Due" class="no-print" /></dt>
@@ -290,6 +406,21 @@ watch(
           </div>
         </dl>
       </div>
+
+      <section v-if="bill.returns.length" class="returns" aria-labelledby="returns-title">
+        <h2 id="returns-title">Returns <InfoTip term="Return number" class="no-print" /></h2>
+        <ul>
+          <li v-for="entry in bill.returns" :key="entry.id">
+            <span class="how mono">{{ entry.return_number }}</span>
+            <span class="when">{{ formatDateTime(entry.returned_at) }}</span>
+            <span class="what">
+              {{ returnedItems(entry)
+              }}<template v-if="entry.note">{{ ` · ${entry.note}` }}</template>
+            </span>
+            <strong>−{{ formatMoney(entry.amount) }}</strong>
+          </li>
+        </ul>
+      </section>
 
       <p class="thanks">Thank you for shopping with us!</p>
     </article>
@@ -301,6 +432,14 @@ watch(
       to see all their bills, or to take one payment across all their dues (oldest bill first).
     </p>
   </template>
+
+  <ReturnItemsDialog v-if="returning" :bill="bill" @done="onReturned" @close="returning = false" />
+  <CancelBillDialog
+    v-if="cancelling"
+    :bill="bill"
+    @done="onCancelled"
+    @close="cancelling = false"
+  />
 
   <ReceivePaymentDialog
     v-if="receiving"
@@ -324,6 +463,78 @@ watch(
 .saved,
 .notice {
   margin-bottom: 1rem;
+}
+
+.bill-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 210mm;
+  margin: 0 auto 1rem;
+}
+
+.tools-label {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.cancel-button {
+  color: var(--color-danger);
+  border-color: currentColor;
+}
+
+.edited {
+  margin-left: auto;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.stamp {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.1rem 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-danger);
+  border: 2px solid currentColor;
+  border-radius: 4px;
+}
+
+.payments li.out strong {
+  color: var(--color-danger);
+}
+
+.returns {
+  margin-top: 1.25rem;
+}
+
+.returns h2 {
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-heading);
+}
+
+.returns ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.returns li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
+.returns .what {
+  flex: 1 1 12rem;
 }
 
 .received {

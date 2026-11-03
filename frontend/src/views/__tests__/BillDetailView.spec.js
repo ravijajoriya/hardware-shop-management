@@ -20,6 +20,14 @@ const bill = {
   total: 880,
   paid_amount: 500,
   due_amount: 380,
+  returned_amount: 0,
+  refunded_amount: 0,
+  net_total: 880,
+  edited: null,
+  cancelled: null,
+  can: { edit_items: true, edit: true, return: true, cancel: true },
+  returns: [],
+  refunds: [],
   status: { value: 'partly_paid', label: 'Partly paid' },
   items: [
     {
@@ -28,6 +36,7 @@ const bill = {
       variant_name: null,
       unit: 'pc',
       quantity: 2,
+      returned_quantity: 0,
       price: 440,
       list_price: 440,
       line_total: 880,
@@ -70,8 +79,85 @@ HTMLDialogElement.prototype.showModal ??= function () {
   this.setAttribute('open', '')
 }
 
+// The bill after one of its two hammers came back: ₹440 off the ₹380 due, ₹60 given back.
+const returnedBill = {
+  ...bill,
+  returned_amount: 440,
+  refunded_amount: 60,
+  net_total: 440,
+  due_amount: 0,
+  status: { value: 'paid', label: 'Paid' },
+  items: [{ ...bill.items[0], returned_quantity: 1 }],
+  returns: [
+    {
+      id: 1,
+      return_number: 'RET-2026-0001',
+      amount: 440,
+      due_reduced: 380,
+      refund_amount: 60,
+      note: 'Handle loose',
+      returned_at: '2026-11-05T09:00:00Z',
+      items: [
+        {
+          id: 1,
+          product_name: 'Claw Hammer',
+          variant_name: null,
+          unit: 'pc',
+          quantity: 1,
+          price: 440,
+          line_total: 440,
+        },
+      ],
+      refund: { id: 1, method: { value: 'cash', label: 'Cash' }, amount: 60, reference: null },
+    },
+  ],
+  refunds: [
+    {
+      id: 1,
+      bill_return_id: 1,
+      reason: { value: 'return', label: 'Items returned' },
+      method: { value: 'cash', label: 'Cash' },
+      amount: 60,
+      reference: null,
+      refunded_at: '2026-11-05T09:00:00Z',
+    },
+  ],
+}
+
+// The bill cancelled, with the ₹500 paid given back by UPI.
+const cancelledBill = {
+  ...bill,
+  refunded_amount: 500,
+  due_amount: 0,
+  status: { value: 'cancelled', label: 'Cancelled' },
+  cancelled: { at: '2026-11-05T09:00:00Z', by: 'Ravi', reason: 'Made twice' },
+  can: { edit_items: false, edit: false, return: false, cancel: false },
+  refunds: [
+    {
+      id: 2,
+      bill_return_id: null,
+      reason: { value: 'cancel', label: 'Bill cancelled' },
+      method: { value: 'upi', label: 'UPI' },
+      amount: 500,
+      reference: null,
+      refunded_at: '2026-11-05T09:00:00Z',
+    },
+  ],
+}
+
 function serve({ pdfStatus = 200, shown = bill } = {}) {
   return async (url) => {
+    if (url.endsWith('/returns')) {
+      return new Response(
+        JSON.stringify({ data: returnedBill, shop, return_number: 'RET-2026-0001' }),
+        { status: 200 },
+      )
+    }
+
+    if (url.endsWith('/cancel')) {
+      return new Response(JSON.stringify({ data: cancelledBill, shop }), { status: 200 })
+    }
+
     if (url.endsWith('/payments')) {
       return new Response(JSON.stringify({ data: paidBill, shop }), { status: 200 })
     }
@@ -125,6 +211,7 @@ describe('BillDetailView: sending the bill', () => {
         { path: '/', component: blank },
         { path: '/bills', name: 'bills', component: blank },
         { path: '/bills/new', name: 'bill-create', component: blank },
+        { path: '/bills/:id/edit', name: 'bill-edit', component: blank },
         { path: '/customers/:id', name: 'customer-show', component: blank },
       ],
     })
@@ -240,6 +327,62 @@ describe('BillDetailView: sending the bill', () => {
     expect(button(wrapper, 'Receive payment')).toBeUndefined()
     expect(wrapper.get('.sheet').text()).toContain('UPI · UPI778899')
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/pdf'))).toHaveLength(2)
+  })
+
+  it('takes items back, showing how the money is settled first', async () => {
+    const wrapper = await open()
+
+    expect(wrapper.get('.bill-tools a').attributes('href')).toBe('/bills/9/edit')
+    await button(wrapper, 'Return items').trigger('click')
+    const dialog = wrapper.get('dialog')
+
+    await dialog.get('input[aria-label="How many Claw Hammer came back"]').setValue('1')
+    expect(dialog.get('.settle').text()).toContain('Worth₹440.00')
+    expect(dialog.get('.settle').text()).toContain('₹380.00')
+    expect(dialog.get('.settle').text()).toContain('To give back₹60.00')
+    await dialog.get('#return-note').setValue('Handle loose')
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    const [, options] = fetchMock.mock.calls.find(([url]) => url.endsWith('/returns'))
+    expect(JSON.parse(options.body)).toEqual({
+      items: [{ bill_item_id: 1, quantity: 1 }],
+      note: 'Handle loose',
+      refund: { method: 'cash', reference: null },
+    })
+
+    expect(wrapper.find('dialog').exists()).toBe(false)
+    expect(wrapper.text()).toContain(
+      'Return RET-2026-0001 is saved and the items are back in stock. ₹380.00 came off the due; ₹60.00 given back by Cash.',
+    )
+    expect(wrapper.get('.returns').text()).toContain('RET-2026-0001')
+    expect(wrapper.get('.sums').text()).toContain('Returned−₹440.00')
+    expect(wrapper.get('.payments').text()).toContain('Given back · Cash')
+  })
+
+  it('cancels the bill, giving back what was paid', async () => {
+    const wrapper = await open()
+
+    await button(wrapper, 'Cancel bill').trigger('click')
+    const dialog = wrapper.get('dialog')
+    expect(dialog.text()).toContain('₹500.00 was paid on this bill.')
+    await dialog.get('#cancel-reason').setValue('Made twice')
+    await dialog.get('input[value="upi"]').setValue()
+    await dialog.get('form').trigger('submit')
+    await flushPromises()
+
+    const [, options] = fetchMock.mock.calls.find(([url]) => url.endsWith('/cancel'))
+    expect(JSON.parse(options.body)).toEqual({
+      reason: 'Made twice',
+      refund: { method: 'upi', reference: null },
+    })
+
+    expect(wrapper.text()).toContain(
+      'The bill is cancelled and its items are back in stock. ₹500.00 given back by UPI.',
+    )
+    expect(wrapper.get('.stamp').text()).toBe('Cancelled')
+    expect(wrapper.find('.bill-tools').exists()).toBe(false)
+    expect(button(wrapper, 'Receive payment')).toBeUndefined()
   })
 
   it('offers no payment on a bill that is paid in full', async () => {

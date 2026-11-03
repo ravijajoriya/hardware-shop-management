@@ -14,6 +14,7 @@ import LoginView from '../views/LoginView.vue'
 import ProductDetailView from '../views/ProductDetailView.vue'
 import ProductFormView from '../views/ProductFormView.vue'
 import ProductsView from '../views/ProductsView.vue'
+import ReportsView from '../views/ReportsView.vue'
 import StockEntriesView from '../views/StockEntriesView.vue'
 import StockEntryDetailView from '../views/StockEntryDetailView.vue'
 import StockEntryFormView from '../views/StockEntryFormView.vue'
@@ -41,6 +42,13 @@ const router = createRouter({
           path: 'bills/new',
           name: 'bill-create',
           component: BillFormView,
+          meta: { section: 'bills' },
+        },
+        {
+          path: 'bills/:id/edit',
+          name: 'bill-edit',
+          component: BillFormView,
+          props: true,
           meta: { section: 'bills' },
         },
         {
@@ -117,6 +125,11 @@ const router = createRouter({
           path: 'brands',
           name: 'brands',
           component: BrandsView,
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: ReportsView,
         },
         {
           path: 'activity',

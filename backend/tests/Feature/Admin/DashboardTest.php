@@ -25,6 +25,7 @@ class DashboardTest extends TestCase
     {
         config(['shop.timezone' => 'Asia/Kolkata']);
         $item = $this->itemInStock('Cement Bag', 100);
+        $item->update(['purchase_price' => 80]);
 
         // 11:30 pm on 2 November in India: yesterday, as far as the next test moment goes.
         $this->travelTo(Carbon::parse('2026-11-02 23:30', 'Asia/Kolkata'));
@@ -44,7 +45,13 @@ class DashboardTest extends TestCase
                 'date' => '2026-11-03',
                 'bills' => 2,
                 'sales' => 1200,
+                'returns' => 0,
+                // 12 bags bought at ₹80 and sold at ₹100.
+                'profit' => 240,
+                'margin' => 20,
+                'cost_estimated' => false,
                 'collected' => ['cash' => 200, 'upi' => 300, 'bank_transfer' => 500, 'total' => 1000],
+                'refunded' => ['cash' => 0, 'upi' => 0, 'bank_transfer' => 0, 'total' => 0],
                 'due' => ['total' => 500, 'customers' => 2],
             ]]);
     }

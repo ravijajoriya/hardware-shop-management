@@ -66,6 +66,25 @@ export const glossary = {
     meaning:
       'The slip that comes with goods from a supplier, listing what was sent. Its number, or the supplier’s bill number, helps you find this delivery later.',
   },
+  'Net sales': {
+    full: null,
+    meaning:
+      'What was sold, less what customers brought back. Sales count on the day of the bill and returns on the day the items came back. Cancelled bills are not counted.',
+  },
+  Profit: {
+    full: null,
+    meaning:
+      'Net sales less what those items cost you to buy. The cost is the average purchase price when each item was sold.',
+  },
+  Margin: {
+    full: null,
+    meaning: 'Profit as a share of net sales. A 20% margin means ₹20 profit on every ₹100 sold.',
+  },
+  'Return number': {
+    full: null,
+    meaning:
+      'Every return gets the next number for the year. RET-2026-0001 is the first return of 2026; RET is short for return.',
+  },
   IP: {
     full: 'Internet Protocol address',
     meaning:

@@ -33,6 +33,36 @@ export const useBillStore = defineStore('bills', () => {
     return data
   }
 
+  // Save an edited bill; it comes back as it now stands.
+  async function update(id, payload) {
+    const { data, shop } = await auth.request(`/admin/bills/${id}`, {
+      method: 'PUT',
+      body: payload,
+    })
+
+    return { bill: data, shop }
+  }
+
+  // Cancel a bill: its stock comes back and anything paid is given back.
+  async function cancel(id, payload) {
+    const { data, shop } = await auth.request(`/admin/bills/${id}/cancel`, {
+      method: 'POST',
+      body: payload,
+    })
+
+    return { bill: data, shop }
+  }
+
+  // Take items back from a bill; the bill comes back with the return on it.
+  async function createReturn(id, payload) {
+    const response = await auth.request(`/admin/bills/${id}/returns`, {
+      method: 'POST',
+      body: payload,
+    })
+
+    return { bill: response.data, shop: response.shop, returnNumber: response.return_number }
+  }
+
   // Take a payment towards this bill only, and get the bill back with it.
   async function receivePayment(id, payload) {
     const { data, shop } = await auth.request(`/admin/bills/${id}/payments`, {
@@ -50,5 +80,17 @@ export const useBillStore = defineStore('bills', () => {
     return new File([blob], `${bill.bill_number}.pdf`, { type: 'application/pdf' })
   }
 
-  return { bills, meta, listQuery, fetchPage, fetchOne, create, receivePayment, fetchPdf }
+  return {
+    bills,
+    meta,
+    listQuery,
+    fetchPage,
+    fetchOne,
+    create,
+    update,
+    cancel,
+    createReturn,
+    receivePayment,
+    fetchPdf,
+  }
 })
