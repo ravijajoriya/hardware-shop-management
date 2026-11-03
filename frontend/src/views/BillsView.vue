@@ -3,7 +3,17 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useBillStore } from '@/stores/bills'
 import { formatDateTime, formatMoney } from '@/utils/format'
-import { BILL_STATUSES, formatMobile, statusClass } from '@/utils/billing'
+import {
+  BILL_CHANGES,
+  BILL_SORTS,
+  BILL_STATUSES,
+  OVERDUE_DAYS,
+  PAYMENT_METHODS,
+  formatMobile,
+  statusClass,
+} from '@/utils/billing'
+import { PERIODS, periodOf, periodRange } from '@/utils/reports'
+import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 
 const store = useBillStore()
@@ -14,14 +24,21 @@ const loaded = ref(false)
 const loading = ref(false)
 const loadError = ref('')
 
-// Filters and the page live in the URL, so they survive a reload and a trip to a bill and back.
-const filters = computed(() => ({
-  search: route.query.search ?? '',
-  status: route.query.status ?? '',
-  page: route.query.page ?? '',
-}))
+// What the list can be narrowed by. Sorting only orders it.
+const FILTERS = ['search', 'product', 'from', 'to', 'status', 'method', 'overdue', 'changes']
 
-const isFiltered = computed(() => Boolean(filters.value.search || filters.value.status))
+// Filters, the order and the page live in the URL, so they survive a reload and a trip to a
+// bill and back.
+const filters = computed(() =>
+  Object.fromEntries(
+    [...FILTERS, 'sort', 'page'].map((key) => [
+      key,
+      typeof route.query[key] === 'string' ? route.query[key] : '',
+    ]),
+  ),
+)
+
+const isFiltered = computed(() => FILTERS.some((key) => filters.value[key]))
 
 function setQuery(changes) {
   const query = { ...route.query, ...changes }
@@ -44,22 +61,65 @@ function goToPage(page) {
   setQuery({ page: page > 1 ? String(page) : '' })
 }
 
-const search = ref(filters.value.search)
-let searchTimer
+// A typed filter waits for a pause in typing, and follows the URL when that changes
+// some other way, such as the Bills link in the menu clearing every filter.
+function typedFilter(key) {
+  const text = ref(filters.value[key])
+  let timer
 
-watch(search, (value) => {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    if (value.trim() !== filters.value.search) {
-      filter({ search: value.trim() })
-    }
-  }, 300)
+  watch(text, (value) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      if (value.trim() !== filters.value[key]) {
+        filter({ [key]: value.trim() })
+      }
+    }, 300)
+  })
+
+  watch(
+    () => filters.value[key],
+    (value) => {
+      if (text.value.trim() !== value) {
+        text.value = value
+      }
+    },
+  )
+
+  return text
+}
+
+const search = typedFilter('search')
+const product = typedFilter('product')
+
+// The date filter: a ready-made period, or days chosen by hand. "Choose dates…" stays picked
+// while the days are filled in, even when they happen to match a ready-made period.
+const choosingDates = ref(false)
+
+const dateChoice = computed(() => {
+  const { from, to } = filters.value
+
+  if (choosingDates.value || (from === '') !== (to === '')) {
+    return 'custom'
+  }
+
+  return from ? periodOf(from, to) : ''
 })
 
+function chooseDate(value) {
+  choosingDates.value = value === 'custom'
+
+  if (value !== 'custom') {
+    filter(value ? periodRange(value) : { from: '', to: '' })
+  }
+}
+
 function clearFilters() {
-  search.value = ''
+  choosingDates.value = false
   router.replace({ query: {} })
 }
+
+const totals = computed(() => store.totals)
+const counted = computed(() => (totals.value ? totals.value.bills - totals.value.cancelled : 0))
 
 async function load() {
   loading.value = true
@@ -69,7 +129,7 @@ async function load() {
     await store.fetchPage(filters.value)
     store.listQuery = { ...route.query }
   } catch (e) {
-    loadError.value = e.message
+    loadError.value = Object.values(e.errors ?? {})[0]?.[0] ?? e.message
   } finally {
     loading.value = false
     loaded.value = true
@@ -95,25 +155,123 @@ watch(
   </div>
 
   <div class="filters">
-    <input
-      v-model="search"
-      class="input search"
-      type="search"
-      placeholder="Search by bill number, customer name or mobile"
-      aria-label="Search bills"
-    />
-    <select
-      class="input"
-      :value="filters.status"
-      aria-label="Filter by payment"
-      @change="filter({ status: $event.target.value })"
-    >
-      <option value="">All bills</option>
-      <option v-for="status in BILL_STATUSES" :key="status.value" :value="status.value">
-        {{ status.label }}
-      </option>
-    </select>
-    <button v-if="isFiltered" type="button" class="btn" @click="clearFilters">Clear</button>
+    <div class="typed">
+      <input
+        v-model="search"
+        class="input search"
+        type="search"
+        placeholder="Search by bill number, customer name or mobile"
+        aria-label="Search bills"
+      />
+      <input
+        v-model="product"
+        class="input"
+        type="search"
+        placeholder="Product name or item code"
+        aria-label="Bills with this product"
+      />
+      <button v-if="isFiltered || filters.sort" type="button" class="btn" @click="clearFilters">
+        Clear filters
+      </button>
+    </div>
+
+    <div class="choices">
+      <div class="choice-field">
+        <label for="bills-date">Date</label>
+        <select
+          id="bills-date"
+          class="input"
+          :value="dateChoice"
+          @change="chooseDate($event.target.value)"
+        >
+          <option value="">Any date</option>
+          <option v-for="option in PERIODS" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+          <option value="custom">Choose dates…</option>
+        </select>
+      </div>
+      <template v-if="dateChoice">
+        <div class="choice-field">
+          <label for="bills-from">From</label>
+          <input
+            id="bills-from"
+            class="input"
+            type="date"
+            :value="filters.from"
+            :max="filters.to || undefined"
+            @change="filter({ from: $event.target.value })"
+          />
+        </div>
+        <div class="choice-field">
+          <label for="bills-to">To</label>
+          <input
+            id="bills-to"
+            class="input"
+            type="date"
+            :value="filters.to"
+            :min="filters.from || undefined"
+            @change="filter({ to: $event.target.value })"
+          />
+        </div>
+      </template>
+      <div class="choice-field">
+        <label for="bills-status">Status</label>
+        <select
+          id="bills-status"
+          class="input"
+          :value="filters.status"
+          @change="filter({ status: $event.target.value })"
+        >
+          <option value="">Any</option>
+          <option v-for="status in BILL_STATUSES" :key="status.value" :value="status.value">
+            {{ status.label }}
+          </option>
+        </select>
+      </div>
+      <div class="choice-field">
+        <label for="bills-method">Paid by</label>
+        <select
+          id="bills-method"
+          class="input"
+          :value="filters.method"
+          @change="filter({ method: $event.target.value })"
+        >
+          <option value="">Any</option>
+          <option v-for="method in PAYMENT_METHODS" :key="method.value" :value="method.value">
+            {{ method.label }}
+          </option>
+        </select>
+      </div>
+      <div class="choice-field">
+        <FieldLabel input-id="bills-overdue" term="Due">Old dues</FieldLabel>
+        <select
+          id="bills-overdue"
+          class="input"
+          :value="filters.overdue"
+          @change="filter({ overdue: $event.target.value })"
+        >
+          <option value="">Any</option>
+          <option v-for="days in OVERDUE_DAYS" :key="days" :value="String(days)">
+            Due for over {{ days }} days
+          </option>
+        </select>
+      </div>
+      <div class="choice-field">
+        <label for="bills-changes">Changes</label>
+        <select
+          id="bills-changes"
+          class="input"
+          :value="filters.changes"
+          @change="filter({ changes: $event.target.value })"
+        >
+          <option value="">Any</option>
+          <option v-for="change in BILL_CHANGES" :key="change.value" :value="change.value">
+            {{ change.label }}
+          </option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <p v-if="!loaded">Loading bills…</p>
@@ -128,6 +286,34 @@ watch(
   </p>
 
   <template v-else>
+    <div class="list-head" :class="{ busy: loading }">
+      <p v-if="totals" class="totals">
+        <strong>{{ totals.bills }} {{ totals.bills === 1 ? 'bill' : 'bills' }}</strong>
+        <template v-if="counted > 0">
+          · {{ formatMoney(totals.billed) }} billed<template v-if="totals.returned > 0">
+            after {{ formatMoney(totals.returned) }} returned</template
+          >
+          · <span :class="{ owing: totals.due > 0 }">{{ formatMoney(totals.due) }} due</span>
+        </template>
+        <template v-if="totals.cancelled > 0">
+          · {{ totals.cancelled }} cancelled, not added in
+        </template>
+      </p>
+      <div class="sort">
+        <label for="bills-sort">Sort by</label>
+        <select
+          id="bills-sort"
+          class="input"
+          :value="filters.sort"
+          @change="filter({ sort: $event.target.value })"
+        >
+          <option v-for="sort in BILL_SORTS" :key="sort.value" :value="sort.value">
+            {{ sort.label }}
+          </option>
+        </select>
+      </div>
+    </div>
+
     <div class="table-wrap" :class="{ busy: loading }">
       <table class="data-table">
         <thead>
@@ -195,18 +381,76 @@ watch(
 <style scoped>
 .filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.filters .input {
-  flex: 1 1 11rem;
+.typed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.typed > .input {
+  flex: 1 1 12rem;
   width: auto;
 }
 
-.filters .search {
+.typed > .search {
   flex: 2 1 16rem;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9.5rem, 100%), 1fr));
+  gap: 0.5rem;
+}
+
+.choice-field {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+
+.choice-field > label,
+.choice-field :deep(.field-label) {
+  min-height: 1.4rem;
+  margin-bottom: 0.15rem;
+}
+
+.choice-field .input,
+.sort .input {
+  width: 100%;
+  /* Dates and dropdowns the same height side by side. */
+  height: 2.6rem;
+  padding-block: 0;
+  font-size: 1rem;
+}
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.sort .input {
+  width: 11rem;
+}
+
+.totals strong {
+  color: var(--color-heading);
 }
 
 .busy {

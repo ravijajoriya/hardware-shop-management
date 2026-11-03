@@ -28,16 +28,24 @@ describe('bill store', () => {
 
   it('loads a page with only the filters that are set', async () => {
     const meta = { current_page: 1, last_page: 1, from: 1, to: 1, total: 1 }
-    fetchMock.mockResolvedValue(jsonResponse(200, { data: [bill], meta }))
+    const totals = { bills: 1, cancelled: 0, billed: 880, returned: 0, due: 0 }
+    fetchMock.mockResolvedValue(jsonResponse(200, { data: [bill], meta, totals }))
     const store = useBillStore()
 
-    await store.fetchPage({ search: 'ramesh', status: '', page: '' })
+    await store.fetchPage({
+      search: 'ramesh',
+      status: '',
+      from: '2026-11-01',
+      overdue: '',
+      page: '',
+    })
 
     const [url, options] = fetchMock.mock.calls[0]
-    expect(url).toMatch(/\/admin\/bills\?search=ramesh$/)
+    expect(url).toMatch(/\/admin\/bills\?search=ramesh&from=2026-11-01$/)
     expect(options.headers.Authorization).toBe('Bearer abc123')
     expect(store.bills).toEqual([bill])
     expect(store.meta).toEqual(meta)
+    expect(store.totals).toEqual(totals)
   })
 
   it('loads a bill with the shop details to print on it', async () => {

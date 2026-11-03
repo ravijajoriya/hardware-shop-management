@@ -18,8 +18,10 @@ use App\Support\BillAmounts;
 use App\Support\DocumentNumber;
 use App\Support\MobileNumber;
 use App\Support\Money;
+use App\Support\ShopCalendar;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -34,12 +36,40 @@ class BillService
     ) {}
 
     /**
-     * @param  array<string, mixed>  $filters  Validated list filters: search, status, per_page.
+     * @param  array<string, mixed>  $filters  Validated list filters (see BillIndexRequest).
      * @return LengthAwarePaginator<int, Bill>
      */
     public function paginate(array $filters): LengthAwarePaginator
     {
-        return $this->bills->paginate($filters, (int) ($filters['per_page'] ?? 20));
+        return $this->bills->paginate($this->listFilters($filters), (int) ($filters['per_page'] ?? 20));
+    }
+
+    /**
+     * What all the bills matching the list filters add up to.
+     *
+     * @param  array<string, mixed>  $filters  Validated list filters (see BillIndexRequest).
+     * @return array{bills: int, cancelled: int, billed: float, returned: float, due: float}
+     */
+    public function totals(array $filters): array
+    {
+        return $this->bills->totals($this->listFilters($filters));
+    }
+
+    /**
+     * The list filters as the repository takes them: days by the shop's calendar become
+     * moments, and "due for over N days" becomes the moment a bill must be older than.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function listFilters(array $filters): array
+    {
+        return [
+            ...Arr::only($filters, ['search', 'status', 'method', 'product', 'changes', 'sort']),
+            'from' => isset($filters['from']) ? ShopCalendar::start($filters['from']) : null,
+            'until' => isset($filters['to']) ? ShopCalendar::after($filters['to']) : null,
+            'due_before' => isset($filters['overdue']) ? now()->subDays((int) $filters['overdue']) : null,
+        ];
     }
 
     public function details(Bill $bill): Bill

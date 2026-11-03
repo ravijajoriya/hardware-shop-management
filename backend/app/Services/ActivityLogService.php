@@ -13,9 +13,9 @@ use App\Models\StockEntry;
 use App\Models\User;
 use App\Repositories\ActivityLogRepository;
 use App\Repositories\UserRepository;
+use App\Support\ShopCalendar;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -71,13 +71,11 @@ class ActivityLogService
      */
     public function paginate(array $filters): LengthAwarePaginator
     {
-        $timezone = config('shop.timezone');
-
         return $this->logs->paginate([
             'user_id' => isset($filters['user_id']) ? (int) $filters['user_id'] : null,
             'section' => $filters['section'] ?? null,
-            'from' => isset($filters['from']) ? Carbon::parse($filters['from'], $timezone)->startOfDay()->utc() : null,
-            'until' => isset($filters['to']) ? Carbon::parse($filters['to'], $timezone)->addDay()->startOfDay()->utc() : null,
+            'from' => isset($filters['from']) ? ShopCalendar::start($filters['from']) : null,
+            'until' => isset($filters['to']) ? ShopCalendar::after($filters['to']) : null,
             'search' => $filters['search'] ?? null,
         ], (int) ($filters['per_page'] ?? 50));
     }
