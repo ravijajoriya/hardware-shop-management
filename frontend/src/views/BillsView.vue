@@ -916,15 +916,18 @@ watch(
   }
 
   /* The whole card opens the bill; the "i" beside Due still opens its explanation. */
+  /* Above the faded lines too, whose opacity puts them in a layer of their own. */
   .data-table.stack td.cell-title a::after {
     content: '';
     position: absolute;
     inset: 0;
+    z-index: 1;
   }
 
-  .data-table.stack td.cell-due :deep(.info) {
+  /* The faded "Due" label is a layer of its own, so it is lifted whole to keep its "i" on top. */
+  .data-table.stack td.cell-due .cell-label {
     position: relative;
-    z-index: 1;
+    z-index: 2;
   }
 }
 

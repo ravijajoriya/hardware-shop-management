@@ -155,10 +155,21 @@ watch(
               </RouterLink>
             </td>
             <td class="address-cell" data-label="Address">{{ customer.address ?? '—' }}</td>
-            <td data-label="Mobile">{{ formatMobile(customer.mobile) }}</td>
-            <td class="num" data-label="Bills">{{ customer.bills_count }}</td>
-            <td class="num" data-label="Total billed">{{ formatMoney(customer.total_billed) }}</td>
-            <td class="num" :class="{ owing: customer.total_due > 0 }">
+            <td class="cell-mobile" data-label="Mobile">
+              {{ formatMobile(customer.mobile)
+              }}<span v-if="customer.address" class="phone-only">{{
+                ` · ${customer.address}`
+              }}</span>
+            </td>
+            <td class="num cell-bills" data-label="Bills">{{ customer.bills_count }}</td>
+            <td class="num cell-billed" data-label="Total billed">
+              <span class="phone-only">
+                {{ customer.bills_count }} {{ customer.bills_count === 1 ? 'Bill' : 'Bills' }} ·
+              </span>
+              {{ formatMoney(customer.total_billed)
+              }}<span class="phone-only">{{ ' Billed' }}</span>
+            </td>
+            <td class="num cell-due" :class="{ owing: customer.total_due > 0 }">
               <span class="cell-label">Due <InfoTip term="Due" /></span>
               {{ formatMoney(customer.total_due) }}
             </td>
@@ -230,6 +241,12 @@ watch(
   text-align: right;
 }
 
+/* Only on a phone, where the card puts the address after the mobile and the bill count
+   before the total. */
+.phone-only {
+  display: none;
+}
+
 .owing {
   font-weight: 600;
   color: var(--color-danger);
@@ -254,6 +271,80 @@ watch(
   .data-table td.name-cell,
   .data-table td.address-cell {
     min-width: 0;
+  }
+}
+
+/*
+ * On a phone each customer is a slim card: the name, then mobile · address, then how many bills
+ * and what they came to, with what they owe on the right. Tapping the card opens the customer.
+ */
+@media (max-width: 640px) {
+  .data-table.stack tr {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name due'
+      'mobile due'
+      'billed billed';
+    gap: 0.25rem 1rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .data-table.stack td.name-cell {
+    grid-area: name;
+  }
+
+  .data-table.stack td.cell-mobile {
+    grid-area: mobile;
+  }
+
+  .data-table.stack td.cell-billed {
+    grid-area: billed;
+  }
+
+  .data-table.stack td.cell-due {
+    grid-area: due;
+    align-self: center;
+    text-align: right;
+  }
+
+  .data-table.stack td.cell-due :deep(.cell-label) {
+    justify-content: flex-end;
+  }
+
+  .data-table.stack td.address-cell,
+  .data-table.stack td.cell-bills {
+    display: none;
+  }
+
+  .data-table.stack td.cell-mobile::before,
+  .data-table.stack td.cell-billed::before {
+    content: none;
+  }
+
+  .data-table.stack td.cell-mobile,
+  .data-table.stack td.cell-billed {
+    font-size: 0.85rem;
+    opacity: 0.85;
+  }
+
+  .phone-only {
+    display: inline;
+  }
+
+  /* The whole card opens the customer; the "i" beside Due still opens its explanation. */
+  /* Above the faded lines too, whose opacity puts them in a layer of their own. */
+  .data-table.stack td.name-cell a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* The faded "Due" label is a layer of its own, so it is lifted whole to keep its "i" on top. */
+  .data-table.stack td.cell-due .cell-label {
+    position: relative;
+    z-index: 2;
   }
 }
 </style>
