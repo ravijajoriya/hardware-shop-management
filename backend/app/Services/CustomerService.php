@@ -2,13 +2,20 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityAction;
 use App\Models\User;
 use App\Repositories\CustomerRepository;
+use App\Support\ActivityChanges;
+use App\Support\ActivitySnapshot;
+use App\Support\MobileNumber;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CustomerService
 {
-    public function __construct(private readonly CustomerRepository $customers) {}
+    public function __construct(
+        private readonly CustomerRepository $customers,
+        private readonly ActivityLogService $activity,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters  Validated list filters: search, with_due, per_page.
@@ -47,7 +54,16 @@ class CustomerService
         $customer = $this->customers->findByMobile($mobile);
 
         if (! $customer) {
-            return $this->customers->create(['name' => $name, 'mobile' => $mobile, 'address' => $address]);
+            $customer = $this->customers->create(['name' => $name, 'mobile' => $mobile, 'address' => $address]);
+
+            $this->activity->record(
+                ActivityAction::CustomerCreated,
+                "Added customer {$name} (".MobileNumber::format($mobile).')',
+                $customer,
+                ActivityChanges::between([], ActivitySnapshot::customer($customer)),
+            );
+
+            return $customer;
         }
 
         if ($customer->is_admin) {
@@ -60,7 +76,16 @@ class CustomerService
         ]);
 
         if ($changes) {
+            $before = ActivitySnapshot::customer($customer);
             $this->customers->updateDetails($customer, $changes);
+            $logged = ActivityChanges::between($before, ActivitySnapshot::customer($customer));
+
+            $this->activity->record(
+                ActivityAction::CustomerUpdated,
+                "Changed customer {$customer->name}: ".ActivityChanges::summary($logged),
+                $customer,
+                $logged,
+            );
         }
 
         return $customer;
