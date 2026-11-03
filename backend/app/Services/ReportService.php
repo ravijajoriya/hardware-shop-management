@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\PaymentMethod;
 use App\Repositories\ReportRepository;
 use App\Support\Money;
+use App\Support\ShopCalendar;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -68,12 +69,7 @@ class ReportService
      */
     private function period(string $from, string $to): array
     {
-        $timezone = config('shop.timezone');
-
-        return [
-            Carbon::parse($from, $timezone)->startOfDay()->utc(),
-            Carbon::parse($to, $timezone)->addDay()->startOfDay()->utc(),
-        ];
+        return [ShopCalendar::start($from), ShopCalendar::after($to)];
     }
 
     /**

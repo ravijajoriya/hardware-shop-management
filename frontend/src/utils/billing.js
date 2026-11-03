@@ -26,6 +26,22 @@ export const BILL_STATUSES = [
   { value: 'cancelled', label: 'Cancelled' },
 ]
 
+// More ways to narrow and order the bills list.
+export const BILL_CHANGES = [
+  { value: 'edited', label: 'Edited' },
+  { value: 'returned', label: 'Items returned' },
+]
+
+// Bills still owing money this many days after they were made.
+export const OVERDUE_DAYS = [30, 60, 90]
+
+export const BILL_SORTS = [
+  { value: '', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'total', label: 'Biggest total' },
+  { value: 'due', label: 'Biggest due' },
+]
+
 // The badge colour for a bill's status: green when paid, amber when part is due, red when all
 // is, and muted when nothing is owed because the items came back or the bill was cancelled.
 export function statusClass(status) {

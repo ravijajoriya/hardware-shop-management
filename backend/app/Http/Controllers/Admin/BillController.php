@@ -25,11 +25,12 @@ class BillController extends Controller
     ) {}
 
     /**
-     * List bills, newest first.
+     * List bills, newest first unless sorted otherwise, with what all the matching bills add up to.
      */
     public function index(BillIndexRequest $request): AnonymousResourceCollection
     {
-        return BillResource::collection($this->bills->paginate($request->validated()));
+        return BillResource::collection($this->bills->paginate($request->validated()))
+            ->additional(['totals' => $this->bills->totals($request->validated())]);
     }
 
     /**

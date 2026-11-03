@@ -6,9 +6,10 @@ import { toQueryString } from '@/utils/query'
 export const useBillStore = defineStore('bills', () => {
   const auth = useAuthStore()
 
-  // The current page of bills, newest first, and its pagination details.
+  // The current page of bills, its pagination details, and what all the matching bills add up to.
   const bills = ref([])
   const meta = ref({ current_page: 1, last_page: 1, from: null, to: null, total: 0 })
+  const totals = ref(null)
 
   // The list's last filters, so a bill can link back to the same page.
   const listQuery = ref({})
@@ -18,6 +19,7 @@ export const useBillStore = defineStore('bills', () => {
 
     bills.value = response.data
     meta.value = response.meta
+    totals.value = response.totals
   }
 
   // A bill with its items and payments, and the shop details printed above it.
@@ -83,6 +85,7 @@ export const useBillStore = defineStore('bills', () => {
   return {
     bills,
     meta,
+    totals,
     listQuery,
     fetchPage,
     fetchOne,
