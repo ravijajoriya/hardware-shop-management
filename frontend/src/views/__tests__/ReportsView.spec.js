@@ -109,21 +109,21 @@ describe('ReportsView', () => {
     const { wrapper } = await open({ from: '2026-11-01', to: '2026-11-02' })
 
     const stats = wrapper.findAll('.stat').map((stat) => stat.text())
-    expect(stats[0]).toContain('₹880.00')
-    expect(stats[0]).toContain('3 bills, ₹1,230.00 sold')
-    expect(stats[0]).toContain('₹350.00 returned')
-    expect(stats[1]).toContain('₹185.00')
+    expect(stats[0]).toContain('₹880')
+    expect(stats[0]).toContain('3 bills, ₹1,230 sold')
+    expect(stats[0]).toContain('₹350 returned')
+    expect(stats[1]).toContain('₹185')
     expect(stats[1]).toContain('21%')
-    expect(stats[2]).toContain('₹800.00')
+    expect(stats[2]).toContain('₹800')
     // What stayed with the shop: ₹700 cash in, ₹350 cash back.
-    expect(stats[2]).toContain('Cash ₹350.00 · Online ₹450.00')
-    expect(stats[2]).toContain('₹1,150.00 in, ₹350.00 given back')
+    expect(stats[2]).toContain('Cash ₹350 · Online ₹450')
+    expect(stats[2]).toContain('₹1,150 in, ₹350 given back')
     expect(wrapper.text()).toContain('Treat it as a close estimate.')
 
     const days = wrapper
       .findAll('section[aria-labelledby="days-title"] tbody tr')
       .map((row) => row.text())
-    expect(days[1]).toContain('−₹350.00')
+    expect(days[1]).toContain('−₹350')
     expect(wrapper.get('section[aria-labelledby="products-title"] a').attributes('href')).toBe(
       '/products/5',
     )

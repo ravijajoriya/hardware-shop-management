@@ -166,7 +166,7 @@ describe('ProductDetailView', () => {
     expect(wrapper.get('h1').text()).toBe('Wall Paint')
     expect(wrapper.get('.subtitle').text()).toContain('Asian Paints · Paint')
     expect(wrapper.findAll('.thumb')).toHaveLength(2)
-    expect(wrapper.get('.amount').text()).toBe('₹360.00 – ₹1,350.00')
+    expect(wrapper.get('.amount').text()).toBe('₹360 – ₹1,350')
     expect(wrapper.get('.stock').text()).toBe('14 pc in stock Low stock')
     expect(wrapper.get('.place .code').text()).toBe('SHOP-GF-R3-S2')
     expect(wrapper.get('.place .words').text()).toBe('Shop · Ground floor · Rack 3 · Shelf 2')
@@ -182,8 +182,8 @@ describe('ProductDetailView', () => {
       .findAll('.sizes-table tbody tr')
       .map((row) => row.findAll('td').map(cellText))
     expect(rows).toEqual([
-      ['1 L', 'AP-1L', '₹360.00', '₹399.00', '10 pc', '—', 'Correct stock'],
-      ['4 L', '—', '₹1,350.00', '—', '4 pc below the minimum', '5 pc', 'Correct stock'],
+      ['1 L', 'AP-1L', '₹360', '₹399', '10 pc', '—', 'Correct stock'],
+      ['4 L', '—', '₹1,350', '—', '4 pc below the minimum', '5 pc', 'Correct stock'],
     ])
 
     expect(wrapper.get('a.btn-primary').attributes('href')).toBe('/products/5/edit')
@@ -192,9 +192,9 @@ describe('ProductDetailView', () => {
   it('shows one price per unit, with its MRP, when there is only one size', async () => {
     const wrapper = await open(earphone)
 
-    expect(wrapper.get('.amount').text()).toBe('₹1,500.00')
+    expect(wrapper.get('.amount').text()).toBe('₹1,500')
     expect(wrapper.get('.price .note').text()).toBe('per pc')
-    expect(wrapper.get('.mrp').text()).toContain('₹1,999.00')
+    expect(wrapper.get('.mrp').text()).toContain('₹1,999')
     expect(wrapper.get('.main').text()).toBe('No photos yet')
     // No Size column: SKU, selling price, MRP, stock, minimum stock and the actions.
     expect(wrapper.findAll('.sizes-table thead th')).toHaveLength(6)
@@ -231,7 +231,7 @@ describe('ProductDetailView', () => {
         '1 Nov 2026',
         '1 L',
         '+6 pc',
-        'Stock in from Sharma Traders (bill ST-4512) at ₹300.00 each. Average cost became ₹290.00.',
+        'Stock in from Sharma Traders (bill ST-4512) at ₹300 each. Average cost became ₹290.',
       ],
     ])
     expect(wrapper.get('.history-table a').attributes('href')).toBe('/stock-in/7')

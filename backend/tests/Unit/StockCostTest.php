@@ -13,7 +13,7 @@ class StockCostTest extends TestCase
         $this->assertSame(30000, StockCost::afterAdding(10, 28000, 20, 31000));
         // 1.5 kg at ₹120 and 0.5 kg at ₹100 make 2 kg at ₹115.
         $this->assertSame(11500, StockCost::afterAdding(1.5, 12000, 0.5, 10000));
-        // Rounded to the paisa: 1 at ₹10.00 and 2 at ₹10.01 make ₹10.0067, so ₹10.01.
+        // Rounded to the paisa: 1 at ₹10 and 2 at ₹10.01 make ₹10.0067, so ₹10.01.
         $this->assertSame(1001, StockCost::afterAdding(1, 1000, 2, 1001));
     }
 

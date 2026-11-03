@@ -167,7 +167,7 @@ class CustomerTest extends TestCase
 
         $this->postJson("/api/admin/customers/{$customer->id}/payments", ['method' => 'cash', 'amount' => 1000.01])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['amount' => 'This is more than the customer owes (₹1,000.00).']);
+            ->assertJsonValidationErrors(['amount' => 'This is more than the customer owes (₹1,000).']);
 
         $this->postJson("/api/admin/customers/{$customer->id}/payments", ['method' => 'cash', 'amount' => 1000])
             ->assertOk()

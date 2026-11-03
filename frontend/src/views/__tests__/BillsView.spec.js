@@ -65,7 +65,7 @@ describe('BillsView', () => {
     const { wrapper } = await open()
 
     expect(text(wrapper, '.totals')).toBe(
-      '5 bills · ₹1,580.00 billed after ₹350.00 returned · ₹930.00 due · 1 cancelled, not added in',
+      '5 bills · ₹1,580 billed after ₹350 returned · ₹930 due · 1 cancelled, not added in',
     )
   })
 

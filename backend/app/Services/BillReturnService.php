@@ -177,7 +177,7 @@ class BillReturnService
     }
 
     /**
-     * "₹200.00 off the due, ₹100.00 given back by Cash", or one of the two.
+     * "₹200 off the due, ₹100 given back by Cash", or one of the two.
      */
     private function settlement(int $dueReduced, int $refund, ?string $method): string
     {

@@ -96,7 +96,7 @@ describe('WhereIsIt', () => {
     expect(result.get('.name').text()).toBe('Claw Hammer')
     // Opens the product's own page, not its edit form.
     expect(result.get('a.name').attributes('href')).toBe('/products/1')
-    expect(result.get('.prices').text()).toBe('₹260.00 per pc')
+    expect(result.get('.prices').text()).toBe('₹260 per pc')
     expect(result.get('.stock').text()).toBe('6 pc in stock')
     expect(result.get('.code').text()).toBe('SHOP-GF-R3-S2')
     expect(result.get('.words').text()).toBe('Shop · Ground floor · Rack 3 · Shelf 2')
@@ -110,14 +110,14 @@ describe('WhereIsIt', () => {
     }
     const wrapper = await searchFor('earphone', [earphone])
 
-    expect(wrapper.get('.prices').text()).toBe('₹1,500.00 per pc')
+    expect(wrapper.get('.prices').text()).toBe('₹1,500 per pc')
   })
 
   it('shows the price of every size', async () => {
     const wrapper = await searchFor('paint', [paint])
 
     const prices = wrapper.findAll('.price').map((price) => price.text().replace(/\s+/g, ' '))
-    expect(prices).toEqual(['1 L ₹360.00', '4 L ₹1,350.00'])
+    expect(prices).toEqual(['1 L ₹360', '4 L ₹1,350'])
   })
 
   it('says when nothing matches', async () => {

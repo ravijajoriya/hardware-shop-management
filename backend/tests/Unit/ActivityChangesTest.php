@@ -16,17 +16,17 @@ class ActivityChangesTest extends TestCase
     {
         $before = [
             'name' => $this->field('Name', 'Wall Paint'),
-            'price' => $this->field('Selling price', '₹360.00'),
+            'price' => $this->field('Selling price', '₹360'),
             'old_size' => $this->field('Size name', '4 L'),
         ];
         $after = [
             'name' => $this->field('Name', 'Wall Paint'),
-            'price' => $this->field('Selling price', '₹380.00'),
+            'price' => $this->field('Selling price', '₹380'),
             'new_size' => $this->field('Size name', '10 L'),
         ];
 
         $this->assertSame([
-            ['field' => 'Selling price', 'old' => '₹360.00', 'new' => '₹380.00'],
+            ['field' => 'Selling price', 'old' => '₹360', 'new' => '₹380'],
             ['field' => 'Size name', 'old' => null, 'new' => '10 L'],
             ['field' => 'Size name', 'old' => '4 L', 'new' => null],
         ], ActivityChanges::between($before, $after));
@@ -44,17 +44,17 @@ class ActivityChangesTest extends TestCase
     public function test_the_summary_shows_the_first_few_changes(): void
     {
         $changes = [
-            ['field' => 'Selling price', 'old' => '₹360.00', 'new' => '₹380.00'],
+            ['field' => 'Selling price', 'old' => '₹360', 'new' => '₹380'],
             ['field' => 'Brand', 'old' => null, 'new' => 'Asian Paints'],
             ['field' => 'Active', 'old' => 'Yes', 'new' => 'No'],
-            ['field' => 'MRP', 'old' => '₹399.00', 'new' => '₹420.00'],
+            ['field' => 'MRP', 'old' => '₹399', 'new' => '₹420'],
             ['field' => 'SKU', 'old' => 'AP-1', 'new' => 'AP-2'],
         ];
 
         $this->assertSame(
-            'Selling price ₹360.00 → ₹380.00, Brand — → Asian Paints, Active Yes → No and 2 more',
+            'Selling price ₹360 → ₹380, Brand — → Asian Paints, Active Yes → No and 2 more',
             ActivityChanges::summary($changes),
         );
-        $this->assertSame('Selling price ₹360.00 → ₹380.00', ActivityChanges::summary(array_slice($changes, 0, 1)));
+        $this->assertSame('Selling price ₹360 → ₹380', ActivityChanges::summary(array_slice($changes, 0, 1)));
     }
 }
