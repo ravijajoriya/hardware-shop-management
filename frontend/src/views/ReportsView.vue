@@ -395,7 +395,7 @@ watch(
 }
 
 /* As cards on tablets and phones (see .stack), the cells share the width. */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.name-cell {
     min-width: 0;
   }

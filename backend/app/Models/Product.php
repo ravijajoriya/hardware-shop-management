@@ -127,6 +127,15 @@ class Product extends Model
     }
 
     /**
+     * Whether the product needs ordering: it is still sold (active) and at least one of its
+     * variants is below its minimum stock.
+     */
+    public function isLowOnStock(): bool
+    {
+        return $this->is_active && $this->variants->contains(fn (ProductVariant $variant) => $variant->isLowOnStock());
+    }
+
+    /**
      * What the stock across all variants would sell for.
      */
     public function stockSellingValue(): float

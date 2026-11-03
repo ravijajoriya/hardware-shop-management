@@ -331,7 +331,7 @@ async function submit() {
 }
 
 /* On tablets and phones each item is a card (see .stack). */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.item-cell,
   .qty-cell {
     min-width: 0;

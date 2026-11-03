@@ -266,7 +266,7 @@ watch(() => props.id, load, { immediate: true })
 }
 
 /* As cards on tablets and phones (see .stack), the cells share the width. */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.item-cell {
     min-width: 0;
   }

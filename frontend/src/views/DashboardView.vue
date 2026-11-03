@@ -57,7 +57,7 @@ onMounted(load)
 
     <div v-else class="stats" :class="{ busy: loading }">
       <div class="stat">
-        <span class="stat-label">Net sales <InfoTip term="Net sales" /></span>
+        <span class="stat-label">Net Sales <InfoTip term="Net sales" /></span>
         <span class="stat-value">{{ formatMoney(today.sales) }}</span>
         <RouterLink class="stat-note" :to="{ name: 'bills' }">
           {{ today.bills }} {{ today.bills === 1 ? 'bill' : 'bills' }} made
@@ -78,7 +78,7 @@ onMounted(load)
       </div>
 
       <div class="stat">
-        <span class="stat-label">Money received</span>
+        <span class="stat-label">Money Received</span>
         <span class="stat-value">{{ formatMoney(kept.total) }}</span>
         <span class="stat-note">
           Cash {{ formatMoney(kept.cash) }} · Online {{ formatMoney(kept.online) }}
@@ -105,6 +105,21 @@ onMounted(load)
           {{ today.due.customers === 1 ? 'customer' : 'customers' }}, across all bills
         </RouterLink>
         <span v-else class="stat-note">Nobody owes anything</span>
+      </div>
+
+      <div class="stat" :class="{ 'stat-owing': today.low_stock > 0 }">
+        <span class="stat-label">Low on stock <InfoTip term="Minimum stock" /></span>
+        <span class="stat-value">
+          {{ today.low_stock }} {{ today.low_stock === 1 ? 'Product' : 'Products' }}
+        </span>
+        <RouterLink
+          v-if="today.low_stock > 0"
+          class="stat-note"
+          :to="{ name: 'products', query: { low_stock: '1' } }"
+        >
+          Below their minimum stock
+        </RouterLink>
+        <span v-else class="stat-note">Nothing is below its minimum stock</span>
       </div>
     </div>
 

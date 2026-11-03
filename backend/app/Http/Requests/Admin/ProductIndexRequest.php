@@ -27,6 +27,8 @@ class ProductIndexRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
             'brand_id' => ['nullable', 'integer', Rule::exists('brands', 'id')],
+            // Only products below their minimum stock.
+            'low_stock' => ['nullable', 'boolean'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];

@@ -26,6 +26,8 @@ class ProductVariantResource extends JsonResource
             'selling_price' => (float) $this->selling_price,
             'mrp' => $this->mrp === null ? null : (float) $this->mrp,
             'stock_quantity' => (float) $this->stock_quantity,
+            'min_stock' => $this->min_stock === null ? null : (float) $this->min_stock,
+            'low_stock' => $this->isLowOnStock(),
             'stock_value' => [
                 'cost' => $this->costValue(),
                 'selling' => $this->sellingValue(),

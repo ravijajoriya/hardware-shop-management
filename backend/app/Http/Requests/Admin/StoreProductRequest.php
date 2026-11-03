@@ -67,6 +67,8 @@ class StoreProductRequest extends FormRequest
             // Opening stock, for new variants only; after that it changes through Stock in and
             // stock corrections, so an existing variant's stock is not needed (and is not saved).
             'variants.*.stock_quantity' => ['required_without:variants.*.id', 'nullable', 'numeric', 'min:0', 'max:'.self::MAX_STOCK, 'decimal:0,3'],
+            // Below this the variant shows as low on stock; empty means no warning.
+            'variants.*.min_stock' => ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_STOCK, 'decimal:0,3'],
         ];
     }
 
@@ -94,6 +96,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.selling_price' => 'selling price',
             'variants.*.mrp' => 'MRP',
             'variants.*.stock_quantity' => 'stock',
+            'variants.*.min_stock' => 'minimum stock',
         ];
     }
 

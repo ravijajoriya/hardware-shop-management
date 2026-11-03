@@ -171,6 +171,7 @@ watch(
 
         <p class="stock">
           <strong>{{ formatQuantity(product.stock_quantity, product.unit) }}</strong> in stock
+          <span v-if="product.low_stock" class="badge badge-danger">Low stock</span>
         </p>
 
         <div class="place">
@@ -225,6 +226,7 @@ watch(
               <th scope="col" class="num">Selling price</th>
               <th scope="col" class="num">MRP <InfoTip term="MRP" /></th>
               <th scope="col" class="num">Stock</th>
+              <th scope="col" class="num">Min. stock <InfoTip term="Minimum stock" /></th>
               <th scope="col" class="actions"><span class="visually-hidden">Actions</span></th>
             </tr>
           </thead>
@@ -242,8 +244,15 @@ watch(
                 <span class="cell-label">MRP <InfoTip term="MRP" /></span>
                 {{ variant.mrp === null ? '—' : formatMoney(variant.mrp) }}
               </td>
-              <td class="num" data-label="Stock">
+              <td class="num" :class="{ low: variant.low_stock }" data-label="Stock">
                 {{ formatQuantity(variant.stock_quantity, product.unit) }}
+                <div v-if="variant.low_stock" class="low-note">below the minimum</div>
+              </td>
+              <td class="num">
+                <span class="cell-label">Min. stock <InfoTip term="Minimum stock" /></span>
+                {{
+                  variant.min_stock === null ? '—' : formatQuantity(variant.min_stock, product.unit)
+                }}
               </td>
               <td class="actions">
                 <button
@@ -376,6 +385,19 @@ watch(
   color: var(--color-heading);
 }
 
+.stock .badge {
+  margin-left: 0.5rem;
+}
+
+.low {
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.low-note {
+  font-size: 0.8rem;
+}
+
 .place {
   display: flex;
   flex-wrap: wrap;
@@ -498,7 +520,7 @@ watch(
 }
 
 /* As cards on tablets and phones (see .stack), the cells share the width. */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.what-cell {
     min-width: 0;
   }

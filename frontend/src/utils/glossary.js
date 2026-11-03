@@ -90,6 +90,11 @@ export const glossary = {
     meaning:
       'The internet address the action came from. Your shop’s Wi-Fi usually shows the same one each time; an address you do not know can mean someone used the app from somewhere else.',
   },
+  'Minimum stock': {
+    full: null,
+    meaning:
+      'The least you want to keep of this item. When the stock drops below it, the product shows as low on stock on the dashboard and in Products, so you know to order more. Leave it blank for no warning.',
+  },
   'List price': {
     full: null,
     meaning:

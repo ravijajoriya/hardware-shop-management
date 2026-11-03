@@ -4,6 +4,7 @@ import {
   NEW_BRAND,
   imageChanges,
   imageOrder,
+  isBelowMinimum,
   productPayload,
   rowWorth,
   savedImageItem,
@@ -73,6 +74,7 @@ describe('productPayload', () => {
           purchase_price: 250,
           selling_price: 320.5,
           mrp: null,
+          min_stock: null,
           stock_quantity: 4,
         },
       ],
@@ -117,6 +119,31 @@ describe('productPayload', () => {
 
     expect(existing).not.toHaveProperty('stock_quantity')
     expect(added.stock_quantity).toBe(3)
+  })
+
+  it('sends the minimum stock for every variant, saved or new', () => {
+    const rows = [
+      variantRow({ id: 7, name: '1 L', stock_quantity: 10, min_stock: 5 }),
+      { ...variantRow({ name: '4 L' }), min_stock: '2.5' },
+      variantRow({ name: '10 L' }),
+    ]
+
+    expect(productPayload(form, rows).variants.map((variant) => variant.min_stock)).toEqual([
+      5,
+      2.5,
+      null,
+    ])
+  })
+})
+
+describe('isBelowMinimum', () => {
+  it('warns only when the stock is below a minimum that is set', () => {
+    expect(isBelowMinimum(3, 5)).toBe(true)
+    expect(isBelowMinimum('4.5', '5')).toBe(true)
+    expect(isBelowMinimum(5, 5)).toBe(false)
+    expect(isBelowMinimum(8, 5)).toBe(false)
+    expect(isBelowMinimum(0, '')).toBe(false)
+    expect(isBelowMinimum(0, null)).toBe(false)
   })
 })
 

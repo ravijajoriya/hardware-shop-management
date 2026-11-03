@@ -24,11 +24,17 @@ const filters = computed(() => ({
   search: route.query.search ?? '',
   category_id: route.query.category_id ?? '',
   brand_id: route.query.brand_id ?? '',
+  low_stock: route.query.low_stock === '1' ? '1' : '',
   page: route.query.page ?? '',
 }))
 
 const isFiltered = computed(() =>
-  Boolean(filters.value.search || filters.value.category_id || filters.value.brand_id),
+  Boolean(
+    filters.value.search ||
+    filters.value.category_id ||
+    filters.value.brand_id ||
+    filters.value.low_stock,
+  ),
 )
 
 function setQuery(changes) {
@@ -144,7 +150,7 @@ async function confirmDelete() {
 
   <section class="stats" aria-label="Stock worth">
     <div class="stat">
-      <span class="stat-label">{{ isFiltered ? 'Matching products' : 'Products' }}</span>
+      <span class="stat-label">{{ isFiltered ? 'Matching products' : 'Total Products' }}</span>
       <span class="stat-value">{{ store.summary.products }}</span>
     </div>
     <div class="stat">
@@ -156,6 +162,21 @@ async function confirmDelete() {
       <span class="stat-value">{{ formatMoney(store.summary.selling_value) }}</span>
       <span class="stat-note">
         {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} above cost
+      </span>
+    </div>
+    <div class="stat" :class="{ 'stat-low': store.summary.low_stock > 0 }">
+      <span class="stat-label">Low on stock <InfoTip term="Minimum stock" /></span>
+      <span class="stat-value">{{ store.summary.low_stock }}</span>
+      <button
+        v-if="store.summary.low_stock > 0 && filters.low_stock !== '1'"
+        type="button"
+        class="show-low"
+        @click="filter({ low_stock: '1' })"
+      >
+        Show {{ store.summary.low_stock === 1 ? 'it' : 'them' }}
+      </button>
+      <span v-else-if="store.summary.low_stock === 0" class="stat-note">
+        Nothing is below its minimum stock
       </span>
     </div>
   </section>
@@ -194,6 +215,14 @@ async function confirmDelete() {
         {{ brand.name }}
       </option>
     </select>
+    <label class="checkbox">
+      <input
+        type="checkbox"
+        :checked="filters.low_stock === '1'"
+        @change="filter({ low_stock: $event.target.checked ? '1' : '' })"
+      />
+      Only low stock
+    </label>
     <button v-if="isFiltered" type="button" class="btn" @click="clearFilters">Clear</button>
   </div>
 
@@ -247,6 +276,7 @@ async function confirmDelete() {
             </td>
             <td class="num" data-label="Stock">
               {{ formatQuantity(product.stock_quantity, product.unit) }}
+              <div v-if="product.low_stock" class="low">Low stock</div>
             </td>
             <td class="num" data-label="Stock worth">
               <div>{{ formatMoney(product.stock_value.cost) }}</div>
@@ -331,6 +361,30 @@ async function confirmDelete() {
   flex: 2 1 14rem;
 }
 
+.stat-low .stat-value,
+.low {
+  color: var(--color-danger);
+}
+
+.low {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.show-low {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 2rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: hsla(160, 100%, 37%, 1);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
 .busy {
   opacity: 0.6;
 }
@@ -397,7 +451,7 @@ async function confirmDelete() {
 }
 
 /* As cards on tablets and phones (see .stack), the cells share the width. */
-@media (max-width: 820px) {
+@media (max-width: 1000px) {
   .data-table td.product-cell {
     min-width: 0;
   }

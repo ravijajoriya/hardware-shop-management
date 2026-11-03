@@ -53,6 +53,7 @@ class DashboardTest extends TestCase
                 'collected' => ['cash' => 200, 'upi' => 300, 'bank_transfer' => 500, 'total' => 1000],
                 'refunded' => ['cash' => 0, 'upi' => 0, 'bank_transfer' => 0, 'total' => 0],
                 'due' => ['total' => 500, 'customers' => 2],
+                'low_stock' => 0,
             ]]);
     }
 

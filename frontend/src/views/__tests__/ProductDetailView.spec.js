@@ -23,9 +23,28 @@ const paint = {
     { id: 2, url: 'http://localhost/side.jpg' },
   ],
   stock_quantity: 14,
+  low_stock: true,
   variants: [
-    { id: 21, name: '1 L', sku: 'AP-1L', selling_price: 360, mrp: 399, stock_quantity: 10 },
-    { id: 22, name: '4 L', sku: null, selling_price: 1350, mrp: null, stock_quantity: 4 },
+    {
+      id: 21,
+      name: '1 L',
+      sku: 'AP-1L',
+      selling_price: 360,
+      mrp: 399,
+      stock_quantity: 10,
+      min_stock: null,
+      low_stock: false,
+    },
+    {
+      id: 22,
+      name: '4 L',
+      sku: null,
+      selling_price: 1350,
+      mrp: null,
+      stock_quantity: 4,
+      min_stock: 5,
+      low_stock: true,
+    },
   ],
 }
 
@@ -148,7 +167,7 @@ describe('ProductDetailView', () => {
     expect(wrapper.get('.subtitle').text()).toContain('Asian Paints · Paint')
     expect(wrapper.findAll('.thumb')).toHaveLength(2)
     expect(wrapper.get('.amount').text()).toBe('₹360.00 – ₹1,350.00')
-    expect(wrapper.get('.stock').text()).toBe('14 pc in stock')
+    expect(wrapper.get('.stock').text()).toBe('14 pc in stock Low stock')
     expect(wrapper.get('.place .code').text()).toBe('SHOP-GF-R3-S2')
     expect(wrapper.get('.place .words').text()).toBe('Shop · Ground floor · Rack 3 · Shelf 2')
     expect(wrapper.text()).toContain('Weatherproof.')
@@ -163,8 +182,8 @@ describe('ProductDetailView', () => {
       .findAll('.sizes-table tbody tr')
       .map((row) => row.findAll('td').map(cellText))
     expect(rows).toEqual([
-      ['1 L', 'AP-1L', '₹360.00', '₹399.00', '10 pc', 'Correct stock'],
-      ['4 L', '—', '₹1,350.00', '—', '4 pc', 'Correct stock'],
+      ['1 L', 'AP-1L', '₹360.00', '₹399.00', '10 pc', '—', 'Correct stock'],
+      ['4 L', '—', '₹1,350.00', '—', '4 pc below the minimum', '5 pc', 'Correct stock'],
     ])
 
     expect(wrapper.get('a.btn-primary').attributes('href')).toBe('/products/5/edit')
@@ -177,7 +196,8 @@ describe('ProductDetailView', () => {
     expect(wrapper.get('.price .note').text()).toBe('per pc')
     expect(wrapper.get('.mrp').text()).toContain('₹1,999.00')
     expect(wrapper.get('.main').text()).toBe('No photos yet')
-    expect(wrapper.findAll('.sizes-table thead th')).toHaveLength(5)
+    // No Size column: SKU, selling price, MRP, stock, minimum stock and the actions.
+    expect(wrapper.findAll('.sizes-table thead th')).toHaveLength(6)
     expect(wrapper.text()).toContain('No brand')
     expect(wrapper.text()).toContain('Not set')
   })
