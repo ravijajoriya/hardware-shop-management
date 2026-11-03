@@ -51,6 +51,21 @@ export const glossary = {
     meaning:
       'The reference number the payment app or bank shows for a UPI or bank payment, usually 12 digits. Optional, but it helps you match the payment in your bank statement.',
   },
+  'Purchase price': {
+    full: null,
+    meaning:
+      'What one unit cost you to buy. When new stock comes in at a different price, it becomes the average cost: 10 pc at ₹280 and then 20 pc at ₹310 makes 30 pc at ₹300.',
+  },
+  'Average cost': {
+    full: null,
+    meaning:
+      'The purchase price after this delivery: the old stock and the new stock averaged by quantity. 10 pc at ₹280 and 20 pc at ₹310 makes 30 pc at ₹300.',
+  },
+  Challan: {
+    full: 'Delivery challan',
+    meaning:
+      'The slip that comes with goods from a supplier, listing what was sent. Its number, or the supplier’s bill number, helps you find this delivery later.',
+  },
   'List price': {
     full: null,
     meaning:

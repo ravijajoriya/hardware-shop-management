@@ -15,6 +15,10 @@ const props = defineProps({
 
 const stockStep = computed(() => (props.unit?.allow_decimal ? '0.001' : '1'))
 
+// Saved variants' stock is shown but not typed over: it changes through Stock in and stock
+// corrections, which are recorded. Only a new variant takes its opening stock here.
+const hasSavedRows = computed(() => rows.value.some((row) => row.id))
+
 const totals = computed(() =>
   rows.value.reduce(
     (sum, row) => {
@@ -55,7 +59,7 @@ function remove(index) {
         <tr>
           <th scope="col">Variant</th>
           <th scope="col">SKU <InfoTip term="SKU" /></th>
-          <th scope="col">Purchase price (₹)</th>
+          <th scope="col">Purchase price (₹) <InfoTip term="Purchase price" /></th>
           <th scope="col">Selling price (₹)</th>
           <th scope="col">MRP (₹) <InfoTip term="MRP" /></th>
           <th scope="col">Stock{{ unit ? ` (${unit.short_name})` : '' }}</th>
@@ -128,14 +132,16 @@ function remove(index) {
             <p v-if="errorFor(index, 'mrp')" class="field-error">{{ errorFor(index, 'mrp') }}</p>
           </td>
           <td class="col-stock">
+            <span v-if="row.id" class="stock-fixed">{{ formatQuantity(row.stock_quantity) }}</span>
             <input
+              v-else
               v-model="row.stock_quantity"
               class="input"
               type="number"
               min="0"
               :step="stockStep"
               required
-              :aria-label="`Variant ${index + 1} stock`"
+              :aria-label="`Variant ${index + 1} opening stock`"
             />
             <p v-if="errorFor(index, 'stock_quantity')" class="field-error">
               {{ errorFor(index, 'stock_quantity') }}
@@ -161,6 +167,11 @@ function remove(index) {
       </tbody>
     </table>
   </div>
+
+  <p v-if="hasSavedRows" class="hint stock-note">
+    Stock of saved variants changes only through Stock in, or Correct stock on the product page, so
+    every change is recorded. A new variant takes its opening stock here.
+  </p>
 
   <div class="footer">
     <button type="button" class="btn" @click="add">Add variant</button>
@@ -215,6 +226,17 @@ function remove(index) {
 
 .col-stock {
   min-width: 6rem;
+}
+
+/* Lined up with the text inside the inputs beside it. */
+.stock-fixed {
+  display: block;
+  padding: 0.55rem 0;
+  color: var(--color-heading);
+}
+
+.stock-note {
+  margin-top: 0.5rem;
 }
 
 .num {

@@ -43,6 +43,12 @@ async function logout() {
           Customers
         </RouterLink>
         <RouterLink
+          :to="{ name: 'stock-entries' }"
+          :class="{ active: route.meta.section === 'stock' }"
+        >
+          Stock in
+        </RouterLink>
+        <RouterLink
           :to="{ name: 'products' }"
           :class="{ active: route.meta.section === 'products' }"
         >

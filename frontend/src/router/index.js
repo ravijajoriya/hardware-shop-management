@@ -13,6 +13,9 @@ import LoginView from '../views/LoginView.vue'
 import ProductDetailView from '../views/ProductDetailView.vue'
 import ProductFormView from '../views/ProductFormView.vue'
 import ProductsView from '../views/ProductsView.vue'
+import StockEntriesView from '../views/StockEntriesView.vue'
+import StockEntryDetailView from '../views/StockEntryDetailView.vue'
+import StockEntryFormView from '../views/StockEntryFormView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -58,6 +61,25 @@ const router = createRouter({
           component: CustomerDetailView,
           props: true,
           meta: { section: 'customers' },
+        },
+        {
+          path: 'stock-in',
+          name: 'stock-entries',
+          component: StockEntriesView,
+          meta: { section: 'stock' },
+        },
+        {
+          path: 'stock-in/new',
+          name: 'stock-entry-create',
+          component: StockEntryFormView,
+          meta: { section: 'stock' },
+        },
+        {
+          path: 'stock-in/:id',
+          name: 'stock-entry-show',
+          component: StockEntryDetailView,
+          props: true,
+          meta: { section: 'stock' },
         },
         {
           path: 'products',

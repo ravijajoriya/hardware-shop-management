@@ -71,6 +71,26 @@ class Product extends Model
     }
 
     /**
+     * Every delivery line for this product, from the Stock in log.
+     *
+     * @return HasMany<StockEntryItem, $this>
+     */
+    public function stockEntryItems(): HasMany
+    {
+        return $this->hasMany(StockEntryItem::class);
+    }
+
+    /**
+     * Every time this product's stock count was set by hand.
+     *
+     * @return HasMany<StockCorrection, $this>
+     */
+    public function stockCorrections(): HasMany
+    {
+        return $this->hasMany(StockCorrection::class);
+    }
+
+    /**
      * The product's photos in display order; the first is its main image.
      *
      * @return HasMany<ProductImage, $this>

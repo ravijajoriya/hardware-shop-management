@@ -407,7 +407,9 @@ class ProductTest extends TestCase
             'name' => 'Apex Ultima Emulsion',
             'gst_rate' => null,
             'variants' => [
-                // The 1 L tin's price and stock change, the 4 L tin is dropped and a 10 L tin is added.
+                // The 1 L tin's prices change, the 4 L tin is dropped and a 10 L tin is added with
+                // its opening stock. The 1 L tin's stock is sent changed too, but stock of an
+                // existing variant only changes through Stock in and corrections, so it stays 10.
                 ['id' => $small['id'], 'name' => '1 L', 'sku' => 'APX-1L', 'purchase_price' => 320, 'selling_price' => 380, 'mrp' => 399, 'stock_quantity' => 7],
                 ['name' => '10 L', 'sku' => 'APX-10L', 'purchase_price' => 2600, 'selling_price' => 3100, 'stock_quantity' => 2],
             ],
@@ -419,13 +421,51 @@ class ProductTest extends TestCase
             ->assertJsonPath('data.gst_rate', null)
             ->assertJsonCount(2, 'data.variants')
             ->assertJsonPath('data.variants.0.id', $small['id'])
-            ->assertJsonPath('data.variants.0.stock_quantity', 7)
+            ->assertJsonPath('data.variants.0.stock_quantity', 10)
             ->assertJsonPath('data.variants.1.name', '10 L')
-            ->assertJsonPath('data.stock_value.cost', 7440)
-            ->assertJsonPath('data.stock_value.selling', 8860);
+            ->assertJsonPath('data.variants.1.stock_quantity', 2)
+            ->assertJsonPath('data.stock_value.cost', 8400)
+            ->assertJsonPath('data.stock_value.selling', 10000);
 
         $this->assertDatabaseMissing('product_variants', ['id' => $large['id']]);
         $this->assertDatabaseCount('product_variants', 2);
+    }
+
+    public function test_existing_variants_need_no_stock_but_new_ones_need_their_opening_stock(): void
+    {
+        $this->actingAsAdmin();
+        $created = $this->postJson('/api/admin/products', $this->payload())->json('data');
+        [$small, $large] = $created['variants'];
+        // An existing variant sent back without its stock.
+        $variant = fn (array $saved) => [
+            'id' => $saved['id'],
+            'name' => $saved['name'],
+            'sku' => $saved['sku'],
+            'purchase_price' => $saved['purchase_price'],
+            'selling_price' => $saved['selling_price'],
+            'mrp' => $saved['mrp'],
+        ];
+        $url = "/api/admin/products/{$created['id']}";
+
+        $this->putJson($url, $this->payload([
+            'unit_id' => $created['unit']['id'],
+            'variants' => [
+                $variant($small),
+                $variant($large),
+                ['name' => '10 L', 'purchase_price' => 2600, 'selling_price' => 3100],
+            ],
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['variants.2.stock_quantity' => 'Enter the opening stock for this variant.'])
+            ->assertJsonMissingValidationErrors(['variants.0.stock_quantity', 'variants.1.stock_quantity']);
+
+        $this->putJson($url, $this->payload([
+            'unit_id' => $created['unit']['id'],
+            'variants' => [$variant($small), $variant($large)],
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.variants.0.stock_quantity', 10)
+            ->assertJsonPath('data.variants.1.stock_quantity', 4);
     }
 
     public function test_update_checks_variant_ids_and_skus(): void

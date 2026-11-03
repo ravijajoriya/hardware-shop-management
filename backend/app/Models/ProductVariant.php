@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'sku', 'purchase_price', 'selling_price', 'mrp', 'stock_quantity'])]
 class ProductVariant extends Model
@@ -29,6 +30,22 @@ class ProductVariant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * @return HasMany<StockEntryItem, $this>
+     */
+    public function stockEntryItems(): HasMany
+    {
+        return $this->hasMany(StockEntryItem::class);
+    }
+
+    /**
+     * @return HasMany<StockCorrection, $this>
+     */
+    public function stockCorrections(): HasMany
+    {
+        return $this->hasMany(StockCorrection::class);
     }
 
     /**
