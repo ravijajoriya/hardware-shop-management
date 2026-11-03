@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -18,6 +18,38 @@ watch(
     menuOpen.value = false
   },
 )
+
+// On a phone the menu is a panel that slides in from the left, over the page.
+const phoneQuery = window.matchMedia?.('(max-width: 640px)') ?? null
+const isPhone = ref(phoneQuery?.matches ?? false)
+const drawerOpen = computed(() => menuOpen.value && isPhone.value)
+
+const menuButton = ref(null)
+const drawerClose = ref(null)
+
+function onScreenChange(event) {
+  isPhone.value = event.matches
+}
+
+onMounted(() => phoneQuery?.addEventListener('change', onScreenChange))
+
+onBeforeUnmount(() => {
+  phoneQuery?.removeEventListener('change', onScreenChange)
+  document.documentElement.classList.remove('menu-locked')
+})
+
+// While the panel is open the page behind it stays still, and focus moves into the panel
+// and back to the menu button when it closes.
+watch(drawerOpen, async (open, wasOpen) => {
+  document.documentElement.classList.toggle('menu-locked', open)
+  await nextTick()
+
+  if (open) {
+    drawerClose.value?.focus()
+  } else if (wasOpen) {
+    menuButton.value?.focus()
+  }
+})
 
 // Covers the Log out button as well as a token the server stops accepting.
 watch(
@@ -39,20 +71,41 @@ async function logout() {
 <template>
   <div class="admin">
     <header class="topbar no-print">
-      <div class="bar">
+      <div class="bar" :inert="drawerOpen || undefined">
         <span class="brand">Hardware Shop Management</span>
         <button
+          ref="menuButton"
           type="button"
           class="btn menu-button"
           aria-controls="main-menu"
           :aria-expanded="menuOpen"
           @click="menuOpen = !menuOpen"
         >
-          {{ menuOpen ? 'Close' : 'Menu' }}
+          <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path v-if="menuOpen" d="M6 6l12 12M18 6L6 18" />
+            <path v-else d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+          <span class="menu-text">{{ menuOpen ? 'Close' : 'Menu' }}</span>
         </button>
+        <span v-if="auth.user" class="bar-user">{{ auth.user.name }}</span>
       </div>
 
       <div id="main-menu" class="menu" :class="{ open: menuOpen }" @keydown.esc="menuOpen = false">
+        <div class="drawer-head">
+          <span class="drawer-brand">Hardware Shop Management</span>
+          <button
+            ref="drawerClose"
+            type="button"
+            class="btn drawer-close"
+            aria-label="Close menu"
+            @click="menuOpen = false"
+          >
+            <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
         <nav class="nav" aria-label="Main">
           <RouterLink :to="{ name: 'dashboard' }">Dashboard</RouterLink>
           <RouterLink :to="{ name: 'bills' }" :class="{ active: route.meta.section === 'bills' }">
@@ -83,15 +136,17 @@ async function logout() {
         </nav>
 
         <div class="account">
-          <span v-if="auth.user">{{ auth.user.name }}</span>
+          <span v-if="auth.user" class="account-name">{{ auth.user.name }}</span>
           <button type="button" class="btn" :disabled="loggingOut" @click="logout">
             {{ loggingOut ? 'Logging out…' : 'Log out' }}
           </button>
         </div>
       </div>
+
+      <div v-if="drawerOpen" class="menu-backdrop" aria-hidden="true" @click="menuOpen = false" />
     </header>
 
-    <main class="content">
+    <main class="content" :inert="drawerOpen || undefined">
       <RouterView />
     </main>
   </div>
@@ -119,7 +174,10 @@ async function logout() {
   display: contents;
 }
 
-.menu-button {
+.menu-button,
+.bar-user,
+.menu-icon,
+.drawer-head {
   display: none;
 }
 
@@ -196,6 +254,173 @@ async function logout() {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
     border-top: 1px solid var(--color-border);
+  }
+}
+
+/*
+ * On a phone: the menu button is three lines in the top-left corner (a cross while open),
+ * the shop name beside it, and the admin's name in the top-right corner.
+ */
+@media (max-width: 640px) {
+  .bar {
+    justify-content: flex-start;
+    gap: 0.6rem;
+  }
+
+  .menu-button {
+    order: -1;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+    flex: none;
+  }
+
+  .menu-icon {
+    display: block;
+    width: 1.4rem;
+    height: 1.4rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .menu-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .brand {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bar-user {
+    display: block;
+    flex: none;
+    max-width: 35%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-heading);
+  }
+
+  /* The menu: a panel that slides in from the left over a dimmed page. */
+  .menu {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    width: min(18rem, 85vw);
+    background: var(--color-background-soft);
+    border-right: 1px solid var(--color-border);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+
+  .menu.open {
+    display: flex;
+    padding-top: 0;
+    transform: none;
+    visibility: visible;
+    transition: transform 0.25s ease;
+  }
+
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem 0.6rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .drawer-brand {
+    font-weight: 600;
+    color: var(--color-heading);
+  }
+
+  .drawer-close {
+    flex: none;
+    justify-content: center;
+    align-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+  }
+
+  .drawer-close .menu-icon {
+    display: block;
+  }
+
+  .nav {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.75rem;
+    overflow-y: auto;
+  }
+
+  .nav a {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .account {
+    justify-content: space-between;
+    margin: 0;
+    padding: 0.85rem 1rem;
+  }
+
+  .account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-heading);
+  }
+
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.5);
+    animation: fade-in 0.25s ease;
+  }
+
+  /* The page behind the open panel does not scroll. */
+  :global(html.menu-locked) {
+    overflow: hidden;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .menu.open {
+    transition: none;
+  }
+
+  .menu-backdrop {
+    animation: none;
   }
 }
 
