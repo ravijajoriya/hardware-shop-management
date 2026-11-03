@@ -837,9 +837,10 @@ watch(
 
   /* A slim card for each bill: number and status, the customer, when and how many items,
      then Total, Paid and Due side by side. */
+  /* The last column takes the status's width, so "Partly paid" stays on one line. */
   .data-table.stack tr {
     position: relative;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     grid-template-areas:
       'number number status'
       'customer customer customer'
@@ -858,6 +859,10 @@ watch(
     grid-area: status;
     justify-self: end;
     align-self: center;
+  }
+
+  .data-table.stack td.cell-status .badge {
+    white-space: nowrap;
   }
 
   .data-table.stack td.customer-cell {
