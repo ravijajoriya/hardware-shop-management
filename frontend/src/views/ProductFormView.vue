@@ -524,7 +524,7 @@ onMounted(load)
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   gap: 0 1rem;
 }
 
@@ -581,7 +581,7 @@ onMounted(load)
 }
 
 .place-grid {
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
 }
 
 .rack {
@@ -638,5 +638,12 @@ onMounted(load)
   background: none;
   border: 0;
   cursor: pointer;
+}
+
+/* On a small phone every bit of width counts. */
+@media (max-width: 480px) {
+  .form-section {
+    padding: 1rem;
+  }
 }
 </style>

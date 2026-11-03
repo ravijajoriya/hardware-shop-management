@@ -107,6 +107,13 @@ input {
   border-radius: 6px;
 }
 
+/* Phones and tablets zoom the page in when a box with text under 16px is tapped. */
+@media (pointer: coarse), (max-width: 820px) {
+  input {
+    font-size: 16px;
+  }
+}
+
 input:focus {
   outline: 2px solid hsla(160, 100%, 37%, 0.6);
   outline-offset: 1px;

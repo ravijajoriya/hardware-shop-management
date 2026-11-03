@@ -136,7 +136,7 @@ watch(
 
   <template v-else>
     <div class="table-wrap" :class="{ busy: loading }">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead>
           <tr>
             <th scope="col">Customer</th>
@@ -149,16 +149,17 @@ watch(
         </thead>
         <tbody>
           <tr v-for="customer in store.customers" :key="customer.id">
-            <td class="name-cell">
+            <td class="name-cell cell-title">
               <RouterLink :to="{ name: 'customer-show', params: { id: customer.id } }">
                 {{ customer.name }}
               </RouterLink>
             </td>
-            <td class="address-cell">{{ customer.address ?? '—' }}</td>
-            <td>{{ formatMobile(customer.mobile) }}</td>
-            <td class="num">{{ customer.bills_count }}</td>
-            <td class="num">{{ formatMoney(customer.total_billed) }}</td>
+            <td class="address-cell" data-label="Address">{{ customer.address ?? '—' }}</td>
+            <td data-label="Mobile">{{ formatMobile(customer.mobile) }}</td>
+            <td class="num" data-label="Bills">{{ customer.bills_count }}</td>
+            <td class="num" data-label="Total billed">{{ formatMoney(customer.total_billed) }}</td>
             <td class="num" :class="{ owing: customer.total_due > 0 }">
+              <span class="cell-label">Due <InfoTip term="Due" /></span>
               {{ formatMoney(customer.total_due) }}
             </td>
           </tr>
@@ -246,5 +247,13 @@ watch(
 .pages {
   display: flex;
   gap: 0.5rem;
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.name-cell,
+  .data-table td.address-cell {
+    min-width: 0;
+  }
 }
 </style>

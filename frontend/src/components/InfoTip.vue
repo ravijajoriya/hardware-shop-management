@@ -115,6 +115,17 @@ onBeforeUnmount(hide)
   border: 1px solid var(--color-border-hover);
   border-radius: 50%;
   cursor: help;
+  position: relative;
+}
+
+/* A finger needs more room than the small circle shows, so the tap area reaches past it. */
+@media (pointer: coarse) {
+  .info-button::after {
+    content: '';
+    position: absolute;
+    inset: -0.3rem;
+    border-radius: 50%;
+  }
 }
 
 .info-button:hover,

@@ -167,7 +167,7 @@ watch(
       <p v-if="customer.bills.length === 0" class="empty">No bills yet.</p>
 
       <div v-else class="table-wrap">
-        <table class="data-table">
+        <table class="data-table stack">
           <thead>
             <tr>
               <th scope="col">Bill number <InfoTip term="Bill number" /></th>
@@ -180,18 +180,19 @@ watch(
           </thead>
           <tbody>
             <tr v-for="bill in customer.bills" :key="bill.id">
-              <td>
+              <td class="cell-title">
                 <RouterLink class="mono" :to="{ name: 'bill-show', params: { id: bill.id } }">
                   {{ bill.bill_number }}
                 </RouterLink>
               </td>
-              <td>{{ formatDateTime(bill.created_at) }}</td>
-              <td class="num">{{ formatMoney(bill.total) }}</td>
-              <td class="num">{{ formatMoney(bill.paid_amount) }}</td>
+              <td data-label="Date">{{ formatDateTime(bill.created_at) }}</td>
+              <td class="num" data-label="Total">{{ formatMoney(bill.total) }}</td>
+              <td class="num" data-label="Paid">{{ formatMoney(bill.paid_amount) }}</td>
               <td class="num" :class="{ owing: bill.due_amount > 0 }">
+                <span class="cell-label">Due <InfoTip term="Due" /></span>
                 {{ formatMoney(bill.due_amount) }}
               </td>
-              <td>
+              <td data-label="Status">
                 <span class="badge" :class="statusClass(bill.status)">
                   {{ bill.status.label }}
                 </span>
@@ -208,7 +209,7 @@ watch(
       <p v-if="customer.payments.length === 0" class="empty">No payments yet.</p>
 
       <div v-else class="table-wrap">
-        <table class="data-table">
+        <table class="data-table stack">
           <thead>
             <tr>
               <th scope="col">Date</th>
@@ -220,8 +221,8 @@ watch(
           </thead>
           <tbody>
             <tr v-for="payment in customer.payments" :key="payment.id">
-              <td>{{ formatDateTime(payment.received_at) }}</td>
-              <td>
+              <td class="cell-title">{{ formatDateTime(payment.received_at) }}</td>
+              <td data-label="For bill">
                 <RouterLink
                   class="mono"
                   :to="{ name: 'bill-show', params: { id: payment.bill.id } }"
@@ -229,9 +230,14 @@ watch(
                   {{ payment.bill.bill_number }}
                 </RouterLink>
               </td>
-              <td>{{ payment.method.label }}</td>
-              <td class="mono">{{ payment.reference ?? '—' }}</td>
-              <td class="num">{{ formatMoney(payment.amount) }}</td>
+              <td data-label="Paid by">{{ payment.method.label }}</td>
+              <td class="mono">
+                <span class="cell-label">
+                  Transaction number <InfoTip term="Transaction number" />
+                </span>
+                {{ payment.reference ?? '—' }}
+              </td>
+              <td class="num" data-label="Amount">{{ formatMoney(payment.amount) }}</td>
             </tr>
           </tbody>
         </table>

@@ -315,7 +315,7 @@ watch(
     </div>
 
     <div class="table-wrap" :class="{ busy: loading }">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead>
           <tr>
             <th scope="col">Bill number <InfoTip term="Bill number" /></th>
@@ -330,23 +330,24 @@ watch(
         </thead>
         <tbody>
           <tr v-for="bill in store.bills" :key="bill.id">
-            <td>
+            <td class="cell-title">
               <RouterLink class="mono" :to="{ name: 'bill-show', params: { id: bill.id } }">
                 {{ bill.bill_number }}
               </RouterLink>
             </td>
-            <td>{{ formatDateTime(bill.created_at) }}</td>
-            <td class="customer-cell">
+            <td data-label="Date">{{ formatDateTime(bill.created_at) }}</td>
+            <td class="customer-cell" data-label="Customer">
               <div class="name">{{ bill.customer.name }}</div>
               <div class="details">{{ formatMobile(bill.customer.mobile) }}</div>
             </td>
-            <td class="num">{{ bill.items_count }}</td>
-            <td class="num">{{ formatMoney(bill.total) }}</td>
-            <td class="num">{{ formatMoney(bill.paid_amount) }}</td>
+            <td class="num" data-label="Items">{{ bill.items_count }}</td>
+            <td class="num" data-label="Total">{{ formatMoney(bill.total) }}</td>
+            <td class="num" data-label="Paid">{{ formatMoney(bill.paid_amount) }}</td>
             <td class="num" :class="{ owing: bill.due_amount > 0 }">
+              <span class="cell-label">Due <InfoTip term="Due" /></span>
               {{ formatMoney(bill.due_amount) }}
             </td>
-            <td>
+            <td data-label="Status">
               <span class="badge" :class="statusClass(bill.status)">{{ bill.status.label }}</span>
             </td>
           </tr>
@@ -460,6 +461,12 @@ watch(
 .data-table td.customer-cell {
   min-width: 12rem;
   white-space: normal;
+}
+
+@media (max-width: 820px) {
+  .data-table td.customer-cell {
+    min-width: 0;
+  }
 }
 
 .name {

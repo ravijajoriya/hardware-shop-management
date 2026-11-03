@@ -346,8 +346,8 @@ watch(
             <tr>
               <th scope="col" class="index">#</th>
               <th scope="col">Item</th>
-              <th scope="col" class="num">Qty</th>
-              <th scope="col" class="num">Price</th>
+              <th scope="col" class="num qty">Qty</th>
+              <th scope="col" class="num price">Price</th>
               <th scope="col" class="num">Amount</th>
             </tr>
           </thead>
@@ -357,9 +357,12 @@ watch(
               <td class="item">
                 {{ item.product_name
                 }}<span v-if="item.variant_name" class="size">{{ ` · ${item.variant_name}` }}</span>
+                <span class="line-math">
+                  {{ itemQuantity(item) }} × {{ formatMoney(item.price) }}
+                </span>
               </td>
-              <td class="num">{{ itemQuantity(item) }}</td>
-              <td class="num">{{ formatMoney(item.price) }}</td>
+              <td class="num qty">{{ itemQuantity(item) }}</td>
+              <td class="num price">{{ formatMoney(item.price) }}</td>
               <td class="num">{{ formatMoney(item.line_total) }}</td>
             </tr>
           </tbody>
@@ -698,6 +701,15 @@ watch(
   opacity: 0.8;
 }
 
+/* Quantity and price under the item name, shown instead of their columns on a phone. */
+.line-math {
+  display: none;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  opacity: 0.85;
+}
+
 .sheet-foot {
   display: flex;
   flex-wrap: wrap;
@@ -826,6 +838,30 @@ watch(
 
   .sums {
     flex-basis: 100%;
+  }
+
+  /* Each payment on two lines: how and how much, then when. */
+  .payments li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .payments li .when {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: 0.8rem;
+  }
+}
+
+/* On a phone screen (not on paper) quantity × price goes under the name, so Amount fits. */
+@media screen and (max-width: 640px) {
+  .items .qty,
+  .items .price {
+    display: none;
+  }
+
+  .line-math {
+    display: block;
   }
 }
 

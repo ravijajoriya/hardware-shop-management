@@ -173,7 +173,7 @@ watch(
       <section class="block" aria-labelledby="days-title">
         <h2 id="days-title">Day by day</h2>
         <div class="table-wrap">
-          <table class="data-table">
+          <table class="data-table stack">
             <thead>
               <tr>
                 <th scope="col">Day</th>
@@ -188,14 +188,20 @@ watch(
             </thead>
             <tbody>
               <tr v-for="row in report.days" :key="row.date">
-                <td>{{ day(row.date) }}</td>
-                <td class="num">{{ row.bills }}</td>
-                <td class="num">{{ formatMoney(row.sales) }}</td>
-                <td class="num">{{ row.returns > 0 ? `−${formatMoney(row.returns)}` : '—' }}</td>
-                <td class="num strong">{{ formatMoney(row.net_sales) }}</td>
-                <td class="num" :class="{ loss: row.profit < 0 }">{{ formatMoney(row.profit) }}</td>
-                <td class="num">{{ formatMoney(row.received) }}</td>
-                <td class="num">{{ row.refunded > 0 ? formatMoney(row.refunded) : '—' }}</td>
+                <td class="cell-title">{{ day(row.date) }}</td>
+                <td class="num" data-label="Bills">{{ row.bills }}</td>
+                <td class="num" data-label="Sold">{{ formatMoney(row.sales) }}</td>
+                <td class="num" data-label="Returned">
+                  {{ row.returns > 0 ? `−${formatMoney(row.returns)}` : '—' }}
+                </td>
+                <td class="num strong" data-label="Net sales">{{ formatMoney(row.net_sales) }}</td>
+                <td class="num" :class="{ loss: row.profit < 0 }" data-label="Profit">
+                  {{ formatMoney(row.profit) }}
+                </td>
+                <td class="num" data-label="Money in">{{ formatMoney(row.received) }}</td>
+                <td class="num" data-label="Given back">
+                  {{ row.refunded > 0 ? formatMoney(row.refunded) : '—' }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -207,7 +213,7 @@ watch(
           <h2 id="products-title">Top products</h2>
           <p v-if="report.products.length === 0" class="empty">No products sold.</p>
           <div v-else class="table-wrap">
-            <table class="data-table">
+            <table class="data-table stack">
               <thead>
                 <tr>
                   <th scope="col">Product</th>
@@ -221,7 +227,7 @@ watch(
                   v-for="product in report.products"
                   :key="`${product.name}|${product.variant_name}`"
                 >
-                  <td class="name-cell">
+                  <td class="name-cell cell-title">
                     <RouterLink
                       v-if="product.product_id"
                       :to="{ name: 'product-show', params: { id: product.product_id } }"
@@ -233,11 +239,11 @@ watch(
                       {{ product.variant_name }}
                     </div>
                   </td>
-                  <td class="num">
+                  <td class="num" data-label="Qty">
                     {{ formatQuantity(product.quantity, { short_name: product.unit }) }}
                   </td>
-                  <td class="num">{{ formatMoney(product.amount) }}</td>
-                  <td class="num" :class="{ loss: product.profit < 0 }">
+                  <td class="num" data-label="Net sales">{{ formatMoney(product.amount) }}</td>
+                  <td class="num" :class="{ loss: product.profit < 0 }" data-label="Profit">
                     {{ formatMoney(product.profit) }}
                   </td>
                 </tr>
@@ -250,7 +256,7 @@ watch(
           <h2 id="customers-title">Top customers</h2>
           <p v-if="report.customers.length === 0" class="empty">No customers in this period.</p>
           <div v-else class="table-wrap">
-            <table class="data-table">
+            <table class="data-table stack">
               <thead>
                 <tr>
                   <th scope="col">Customer</th>
@@ -261,14 +267,15 @@ watch(
               </thead>
               <tbody>
                 <tr v-for="customer in report.customers" :key="customer.id">
-                  <td class="name-cell">
+                  <td class="name-cell cell-title">
                     <RouterLink :to="{ name: 'customer-show', params: { id: customer.id } }">
                       {{ customer.name }}
                     </RouterLink>
                   </td>
-                  <td class="num">{{ customer.bills }}</td>
-                  <td class="num">{{ formatMoney(customer.amount) }}</td>
+                  <td class="num" data-label="Bills">{{ customer.bills }}</td>
+                  <td class="num" data-label="Bought">{{ formatMoney(customer.amount) }}</td>
                   <td class="num" :class="{ loss: customer.due > 0 }">
+                    <span class="cell-label">Due now <InfoTip term="Due" /></span>
                     {{ formatMoney(customer.due) }}
                   </td>
                 </tr>
@@ -385,5 +392,12 @@ watch(
 .strong {
   font-weight: 600;
   color: var(--color-heading);
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.name-cell {
+    min-width: 0;
+  }
 }
 </style>

@@ -217,7 +217,7 @@ watch(
       </p>
 
       <div class="table-wrap">
-        <table class="data-table sizes-table">
+        <table class="data-table sizes-table stack">
           <thead>
             <tr>
               <th v-if="hasSizes" scope="col">Size</th>
@@ -230,11 +230,21 @@ watch(
           </thead>
           <tbody>
             <tr v-for="variant in product.variants" :key="variant.id">
-              <td v-if="hasSizes" class="size">{{ variant.name }}</td>
-              <td class="mono">{{ variant.sku ?? '—' }}</td>
-              <td class="num">{{ formatMoney(variant.selling_price) }}</td>
-              <td class="num">{{ variant.mrp === null ? '—' : formatMoney(variant.mrp) }}</td>
-              <td class="num">{{ formatQuantity(variant.stock_quantity, product.unit) }}</td>
+              <td v-if="hasSizes" class="size cell-title">{{ variant.name }}</td>
+              <td class="mono">
+                <span class="cell-label">SKU <InfoTip term="SKU" /></span>
+                {{ variant.sku ?? '—' }}
+              </td>
+              <td class="num" data-label="Selling price">
+                {{ formatMoney(variant.selling_price) }}
+              </td>
+              <td class="num">
+                <span class="cell-label">MRP <InfoTip term="MRP" /></span>
+                {{ variant.mrp === null ? '—' : formatMoney(variant.mrp) }}
+              </td>
+              <td class="num" data-label="Stock">
+                {{ formatQuantity(variant.stock_quantity, product.unit) }}
+              </td>
               <td class="actions">
                 <button
                   type="button"
@@ -269,7 +279,7 @@ watch(
       </p>
 
       <div v-else class="table-wrap">
-        <table class="data-table history-table">
+        <table class="data-table history-table stack">
           <thead>
             <tr>
               <th scope="col">Date</th>
@@ -280,12 +290,12 @@ watch(
           </thead>
           <tbody>
             <tr v-for="(row, index) in history" :key="index">
-              <td>{{ formatDate(`${row.date}T00:00:00`) }}</td>
-              <td v-if="hasSizes">{{ row.variant_name ?? '—' }}</td>
-              <td class="num change" :class="row.change < 0 ? 'down' : 'up'">
+              <td class="cell-title">{{ formatDate(`${row.date}T00:00:00`) }}</td>
+              <td v-if="hasSizes" data-label="Size">{{ row.variant_name ?? '—' }}</td>
+              <td class="num change" :class="row.change < 0 ? 'down' : 'up'" data-label="Change">
                 {{ stockChange(row.change, row.unit) }}
               </td>
-              <td class="what-cell">
+              <td class="what-cell cell-wide" data-label="What happened">
                 <template v-if="row.type === 'stock_in'">
                   <RouterLink :to="{ name: 'stock-entry-show', params: { id: row.stock_entry_id } }"
                     >Stock in</RouterLink
@@ -400,7 +410,7 @@ watch(
 
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
   gap: 0.75rem 1.5rem;
   margin: 0;
 }
@@ -485,5 +495,12 @@ watch(
 .data-table td.what-cell {
   min-width: 18rem;
   white-space: normal;
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.what-cell {
+    min-width: 0;
+  }
 }
 </style>

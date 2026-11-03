@@ -142,7 +142,7 @@ watch(() => props.id, load, { immediate: true })
     <p v-if="entry.note" class="note">{{ entry.note }}</p>
 
     <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead>
           <tr>
             <th scope="col">Item</th>
@@ -154,7 +154,7 @@ watch(() => props.id, load, { immediate: true })
         </thead>
         <tbody>
           <tr v-for="item in entry.items" :key="item.id">
-            <td class="item-cell">
+            <td class="item-cell cell-title">
               <RouterLink
                 v-if="item.product_id"
                 :to="{ name: 'product-show', params: { id: item.product_id } }"
@@ -164,10 +164,11 @@ watch(() => props.id, load, { immediate: true })
               <template v-else>{{ item.product_name }} (product deleted)</template>
               <div v-if="item.variant_name" class="details">{{ item.variant_name }}</div>
             </td>
-            <td class="num">{{ itemQuantity(item) }}</td>
-            <td class="num">{{ formatMoney(item.purchase_price) }}</td>
-            <td class="num">{{ formatMoney(item.line_total) }}</td>
+            <td class="num" data-label="Qty">{{ itemQuantity(item) }}</td>
+            <td class="num" data-label="Purchase price">{{ formatMoney(item.purchase_price) }}</td>
+            <td class="num" data-label="Amount">{{ formatMoney(item.line_total) }}</td>
             <td class="num">
+              <span class="cell-label">Average cost <InfoTip term="Average cost" /></span>
               {{ formatMoney(item.cost_after) }}
               <div
                 v-if="item.cost_before !== null && item.cost_before !== item.cost_after"
@@ -214,7 +215,7 @@ watch(() => props.id, load, { immediate: true })
 
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
   gap: 0.75rem 1.5rem;
   margin: 1rem 0;
 }
@@ -262,5 +263,12 @@ watch(() => props.id, load, { immediate: true })
 .total {
   font-weight: 700;
   color: var(--color-heading);
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.item-cell {
+    min-width: 0;
+  }
 }
 </style>

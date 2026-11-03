@@ -153,9 +153,15 @@ describe('ProductDetailView', () => {
     expect(wrapper.get('.place .words').text()).toBe('Shop · Ground floor · Rack 3 · Shelf 2')
     expect(wrapper.text()).toContain('Weatherproof.')
 
+    // What each cell shows in the table, without the name it shows above itself on a phone.
+    const cellText = (td) => {
+      const copy = td.element.cloneNode(true)
+      copy.querySelector('.cell-label')?.remove()
+      return copy.textContent.replace(/\s+/g, ' ').trim()
+    }
     const rows = wrapper
       .findAll('.sizes-table tbody tr')
-      .map((row) => row.findAll('td').map((td) => td.text()))
+      .map((row) => row.findAll('td').map(cellText))
     expect(rows).toEqual([
       ['1 L', 'AP-1L', '₹360.00', '₹399.00', '10 pc', 'Correct stock'],
       ['4 L', '—', '₹1,350.00', '—', '4 pc', 'Correct stock'],

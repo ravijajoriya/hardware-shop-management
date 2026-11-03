@@ -112,7 +112,7 @@ function remove(item) {
 <style scoped>
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(8.5rem, 100%), 1fr));
   gap: 0.75rem;
   margin: 0 0 1rem;
   padding: 0;

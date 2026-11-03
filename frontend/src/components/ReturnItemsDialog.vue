@@ -108,7 +108,7 @@ async function submit() {
       <p v-if="error" class="alert-error" role="alert">{{ error }}</p>
 
       <div class="table-wrap">
-        <table class="data-table return-table">
+        <table class="data-table return-table stack">
           <thead>
             <tr>
               <th scope="col">Item</th>
@@ -118,7 +118,7 @@ async function submit() {
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.key">
-              <td class="item-cell">
+              <td class="item-cell cell-title">
                 <span class="name">{{ itemName(row.item) }}</span>
                 <span class="details">
                   {{ itemQuantity(row.item) }} bought at {{ formatMoney(row.item.price)
@@ -130,6 +130,7 @@ async function submit() {
                 </span>
               </td>
               <td class="num qty-cell">
+                <span class="cell-label">Coming back</span>
                 <div class="with-unit">
                   <input
                     v-model="row.quantity"
@@ -148,7 +149,7 @@ async function submit() {
                   up to {{ formatQuantity(returnableQuantity(row.item), unitOf(row.item)) }}
                 </p>
               </td>
-              <td class="num">
+              <td class="num" data-label="Worth">
                 {{ formatMoney(lineTotal({ quantity: row.quantity, price: row.item.price })) }}
               </td>
             </tr>
@@ -327,5 +328,17 @@ async function submit() {
   font-size: 0.8rem;
   font-weight: normal;
   opacity: 0.7;
+}
+
+/* On tablets and phones each item is a card (see .stack). */
+@media (max-width: 820px) {
+  .data-table td.item-cell,
+  .qty-cell {
+    min-width: 0;
+  }
+
+  .with-unit {
+    justify-content: flex-start;
+  }
 }
 </style>

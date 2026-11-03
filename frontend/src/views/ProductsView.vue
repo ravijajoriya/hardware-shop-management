@@ -214,7 +214,7 @@ async function confirmDelete() {
 
   <template v-else>
     <div class="table-wrap" :class="{ busy: loading }">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead>
           <tr>
             <th scope="col">Product</th>
@@ -228,7 +228,7 @@ async function confirmDelete() {
         </thead>
         <tbody>
           <tr v-for="product in store.products" :key="product.id">
-            <td class="product-cell">
+            <td class="product-cell cell-title">
               <div class="product">
                 <img v-if="product.image_url" :src="product.image_url" alt="" class="thumb" />
                 <span v-else class="thumb" aria-hidden="true"></span>
@@ -240,16 +240,19 @@ async function confirmDelete() {
                 </div>
               </div>
             </td>
-            <td>{{ product.category.name }}</td>
+            <td data-label="Category">{{ product.category.name }}</td>
             <td class="mono" :title="locationLabel(product.location)">
+              <span class="cell-label">Location <InfoTip term="Location code" /></span>
               {{ product.location.code }}
             </td>
-            <td class="num">{{ formatQuantity(product.stock_quantity, product.unit) }}</td>
-            <td class="num">
+            <td class="num" data-label="Stock">
+              {{ formatQuantity(product.stock_quantity, product.unit) }}
+            </td>
+            <td class="num" data-label="Stock worth">
               <div>{{ formatMoney(product.stock_value.cost) }}</div>
               <div class="sells-for">sells for {{ formatMoney(product.stock_value.selling) }}</div>
             </td>
-            <td>
+            <td data-label="Status">
               <span class="badge" :class="{ 'badge-active': product.is_active }">
                 {{ product.is_active ? 'Active' : 'Inactive' }}
               </span>
@@ -384,5 +387,19 @@ async function confirmDelete() {
 .pages {
   display: flex;
   gap: 0.5rem;
+}
+
+/* A little narrower on smaller laptops and landscape tablets, so every column fits. */
+@media (max-width: 1100px) {
+  .data-table td.product-cell {
+    min-width: 13rem;
+  }
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.product-cell {
+    min-width: 0;
+  }
 }
 </style>

@@ -118,6 +118,13 @@ a,
   border-radius: 6px;
 }
 
+/* Phones and tablets zoom the page in when a box with text under 16px is tapped. */
+@media (pointer: coarse), (max-width: 820px) {
+  .input {
+    font-size: 16px;
+  }
+}
+
 .input:focus {
   outline: 2px solid hsla(160, 100%, 37%, 0.6);
   outline-offset: 1px;
@@ -189,6 +196,99 @@ textarea.input {
   margin-left: 0.5rem;
 }
 
+/* Tighter cells on smaller laptops and landscape tablets, so wide lists still fit. */
+@media (max-width: 1100px) {
+  .data-table th,
+  .data-table td {
+    padding: 0.6rem 0.65rem;
+  }
+}
+
+/*
+ * A table marked "stack" turns each row into a card on tablets and phones, where its columns
+ * would not fit: every cell sits under its name, two or more to a line. A cell names itself
+ * with data-label, or with a .cell-label inside it when the name has an "i" to explain it.
+ * A .cell-title (such as the bill number), a .cell-wide and the .actions take a whole line.
+ */
+.cell-label {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .data-table.stack thead {
+    display: none;
+  }
+
+  .data-table.stack,
+  .data-table.stack tbody {
+    display: block;
+  }
+
+  .data-table.stack tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(8.5rem, 100%), 1fr));
+    gap: 0.6rem 1rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .data-table.stack td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .data-table.stack td[data-label]::before {
+    content: attr(data-label);
+  }
+
+  .data-table.stack td[data-label]::before,
+  .data-table.stack .cell-label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.1rem;
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: var(--color-text);
+    opacity: 0.75;
+  }
+
+  .data-table.stack .cell-title,
+  .data-table.stack .cell-wide,
+  .data-table.stack .actions {
+    grid-column: 1 / -1;
+  }
+
+  .data-table.stack .cell-title {
+    font-weight: 600;
+  }
+
+  .data-table.stack tfoot {
+    display: block;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .data-table.stack tfoot tr {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .data-table.stack tfoot :is(th, td) {
+    padding: 0;
+  }
+
+  .data-table.stack tfoot td:empty {
+    display: none;
+  }
+
+  .data-table.stack .actions {
+    text-align: left;
+  }
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
@@ -242,7 +342,7 @@ textarea.input {
 /* Summary figures shown as cards, such as stock worth or today's sales. */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
   gap: 0.75rem;
   margin-bottom: 1.5rem;
 }
@@ -333,9 +433,26 @@ textarea.input {
 
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1.5rem;
+}
+
+/* On a small phone every bit of width counts. */
+@media (max-width: 480px) {
+  .dialog {
+    width: calc(100vw - 1.5rem);
+    padding: 1.25rem 1rem;
+  }
+}
+
+/* Small buttons still need room for a finger on a touch screen. */
+@media (pointer: coarse) {
+  .btn.small {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
 }
 
 /* Printing (bills): only the page itself, in black on white whatever the screen theme. */

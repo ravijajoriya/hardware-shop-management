@@ -114,7 +114,7 @@ watch(
 
   <template v-else>
     <div class="table-wrap" :class="{ busy: loading }">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead>
           <tr>
             <th scope="col">Date received</th>
@@ -127,16 +127,19 @@ watch(
         </thead>
         <tbody>
           <tr v-for="entry in stock.entries" :key="entry.id">
-            <td>
+            <td class="cell-title">
               <RouterLink :to="{ name: 'stock-entry-show', params: { id: entry.id } }">
                 {{ formatDate(`${entry.received_on}T00:00:00`) }}
               </RouterLink>
             </td>
-            <td class="supplier-cell">{{ entry.supplier_name ?? '—' }}</td>
-            <td class="mono">{{ entry.supplier_bill_number ?? '—' }}</td>
-            <td class="num">{{ entry.items_count }}</td>
-            <td class="num">{{ formatMoney(entry.total) }}</td>
-            <td>{{ entry.created_by ?? '—' }}</td>
+            <td class="supplier-cell" data-label="Supplier">{{ entry.supplier_name ?? '—' }}</td>
+            <td class="mono">
+              <span class="cell-label">Bill or challan <InfoTip term="Challan" /></span>
+              {{ entry.supplier_bill_number ?? '—' }}
+            </td>
+            <td class="num" data-label="Items">{{ entry.items_count }}</td>
+            <td class="num" data-label="Total cost">{{ formatMoney(entry.total) }}</td>
+            <td data-label="Entered by">{{ entry.created_by ?? '—' }}</td>
           </tr>
         </tbody>
       </table>
@@ -202,5 +205,12 @@ watch(
 .pages {
   display: flex;
   gap: 0.5rem;
+}
+
+/* As cards on tablets and phones (see .stack), the cells share the width. */
+@media (max-width: 820px) {
+  .data-table td.supplier-cell {
+    min-width: 0;
+  }
 }
 </style>

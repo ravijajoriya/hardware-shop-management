@@ -913,7 +913,7 @@ onMounted(() => {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   gap: 0 1rem;
 }
 
@@ -1100,6 +1100,22 @@ onMounted(() => {
   }
 }
 
+/* On a small phone quantity and price get the whole width, with the amount on its own row. */
+@media (max-width: 400px) {
+  .line {
+    grid-template-areas:
+      'item item remove'
+      'qty price price'
+      'amount amount amount';
+  }
+
+  .line-amount {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+}
+
 .reference {
   max-width: 22rem;
 }
@@ -1249,5 +1265,12 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* On a small phone every bit of width counts. */
+@media (max-width: 480px) {
+  .form-section {
+    padding: 1rem;
+  }
 }
 </style>
