@@ -38,6 +38,14 @@ class ProductVariantRepository
         ProductVariant::whereKey($variant->id)->decrement('stock_quantity', $quantity);
     }
 
+    /**
+     * Put items back on the shelf, such as when they are returned or a bill is cancelled.
+     */
+    public function returnStock(ProductVariant $variant, float $quantity): void
+    {
+        ProductVariant::whereKey($variant->id)->increment('stock_quantity', $quantity);
+    }
+
     public function updateStock(ProductVariant $variant, float $stock, ?float $purchasePrice): void
     {
         $variant->update(['stock_quantity' => $stock, 'purchase_price' => $purchasePrice]);

@@ -22,14 +22,19 @@ export const BILL_STATUSES = [
   { value: 'paid', label: 'Paid' },
   { value: 'partly_paid', label: 'Partly paid' },
   { value: 'unpaid', label: 'Unpaid' },
+  { value: 'returned', label: 'Fully returned' },
+  { value: 'cancelled', label: 'Cancelled' },
 ]
 
-// The badge colour for a bill's status: green when paid, amber when part is due, red when all is.
+// The badge colour for a bill's status: green when paid, amber when part is due, red when all
+// is, and muted when nothing is owed because the items came back or the bill was cancelled.
 export function statusClass(status) {
   return {
     paid: 'badge-active',
     partly_paid: 'badge-warning',
     unpaid: 'badge-danger',
+    returned: 'badge-muted',
+    cancelled: 'badge-muted',
   }[status.value]
 }
 
@@ -112,8 +117,11 @@ export function lineTotal(line) {
 }
 
 // Selling more than the stock shows is allowed, since the count may be off, but worth a warning.
+// A line whose product has been deleted has no stock to compare with.
 export function isShortOfStock(line) {
-  return Number(line.quantity) > Number(line.stock)
+  return (
+    line.stock !== null && line.stock !== undefined && Number(line.quantity) > Number(line.stock)
+  )
 }
 
 // A payment row for a split payment; `key` only exists in the browser.
@@ -191,6 +199,107 @@ export function billPayload(customer, lines, payments) {
   }
 }
 
+// --- Changing a saved bill ---
+
+// A saved bill line in the form, to edit. Its own items are already off the shelf, so they
+// count as in stock for it; `original` is what the bill said before the edit.
+export function editLine(item) {
+  return {
+    key: nextKey++,
+    id: item.id,
+    variant_id: item.product_variant_id,
+    product_name: item.product_name,
+    variant_name: item.variant_name,
+    unit: {
+      short_name: item.unit,
+      name: item.current?.unit_name ?? item.unit,
+      allow_decimal: item.current?.allow_decimal ?? true,
+    },
+    list_price: item.list_price,
+    stock: item.current
+      ? Math.round((item.current.stock_quantity + item.quantity) * 1000) / 1000
+      : null,
+    quantity: item.quantity,
+    price: item.price,
+    original: { quantity: item.quantity, price: item.price },
+  }
+}
+
+// The body the API expects when saving an edited bill. A refund goes with it when the new
+// total is less than what was paid.
+export function editPayload(customer, lines, refund = null) {
+  const { customer: details, items } = billPayload(customer, lines, [])
+
+  return {
+    customer: details,
+    items: items.map((item, index) => (lines[index].id ? { id: lines[index].id, ...item } : item)),
+    refund: refund
+      ? { method: refund.method, reference: referenceFor(refund.method, refund.reference) }
+      : null,
+  }
+}
+
+// What the customer has paid on the bill and not had back.
+export function netPaid(bill) {
+  return (toPaise(bill.paid_amount) - toPaise(bill.refunded_amount)) / 100
+}
+
+// What would have to be given back if the bill's total became `total`.
+export function refundAfterEdit(bill, total) {
+  const payable = toPaise(total) - toPaise(bill.returned_amount)
+
+  return Math.max(toPaise(netPaid(bill)) - payable, 0) / 100
+}
+
+// --- Returns and cancelling ---
+
+// How much of a line is still with the customer, and so can come back.
+export function returnableQuantity(item) {
+  return Math.round((item.quantity - item.returned_quantity) * 1000) / 1000
+}
+
+// A line of the return form; nothing is coming back until a quantity is typed.
+export function returnRow(item) {
+  return { key: nextKey++, item, quantity: '' }
+}
+
+// What the returned items were worth on the bill.
+export function returnTotal(rows) {
+  return billTotals(
+    rows.map((row) => ({ quantity: row.quantity, price: row.item.price })),
+    [],
+  ).total
+}
+
+// How a return of `amount` is settled: first off what is still due, the rest given back.
+export function returnSettlement(bill, amount) {
+  const worth = toPaise(amount)
+  const offDue = Math.min(worth, toPaise(bill.due_amount))
+
+  return { dueReduced: offDue / 100, refund: (worth - offDue) / 100 }
+}
+
+function refundPayload(refund) {
+  return refund?.method
+    ? { method: refund.method, reference: referenceFor(refund.method, refund.reference) }
+    : null
+}
+
+// The body the API expects when items come back: only the lines with a quantity.
+export function returnPayload(rows, note, refund) {
+  return {
+    items: rows
+      .filter((row) => numberOrNull(row.quantity) > 0)
+      .map((row) => ({ bill_item_id: row.item.id, quantity: numberOrNull(row.quantity) })),
+    note: blankToNull(note),
+    refund: refundPayload(refund),
+  }
+}
+
+export function cancelPayload(reason, refund) {
+  return { reason: reason.trim(), refund: refundPayload(refund) }
+}
+
 // --- WhatsApp ---
 
 // A wa.me link opens WhatsApp (the app, or WhatsApp Web) with the message typed in, ready to send.
@@ -236,6 +345,10 @@ export function billMessage(bill, shop) {
     '',
   ]
 
+  if (bill.status?.value === 'cancelled') {
+    lines.push('*This bill has been cancelled.*', '')
+  }
+
   for (const item of bill.items) {
     lines.push(
       `• ${itemName(item)}: ${itemQuantity(item)} × ${formatMoney(item.price)} = ${formatMoney(item.line_total)}`,
@@ -244,12 +357,20 @@ export function billMessage(bill, shop) {
 
   lines.push('', `*Total: ${formatMoney(bill.total)}*`)
 
+  if (bill.returned_amount > 0) {
+    lines.push(`Returned: −${formatMoney(bill.returned_amount)}`)
+  }
+
   if (bill.paid_amount > 0) {
     const ways = paidByMethod(bill.payments)
       .map((way) => `${way.label} ${formatMoney(way.amount)}`)
       .join(' + ')
 
     lines.push(`Paid: ${formatMoney(bill.paid_amount)} (${ways})`)
+  }
+
+  if (bill.refunded_amount > 0) {
+    lines.push(`Given back: ${formatMoney(bill.refunded_amount)}`)
   }
 
   lines.push(bill.due_amount > 0 ? `*Due: ${formatMoney(bill.due_amount)}*` : 'Paid in full.')

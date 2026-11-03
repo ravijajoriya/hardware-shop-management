@@ -2,6 +2,16 @@ import { describe, it, expect } from 'vitest'
 
 import {
   billCaption,
+  cancelPayload,
+  editLine,
+  editPayload,
+  netPaid,
+  refundAfterEdit,
+  returnPayload,
+  returnRow,
+  returnSettlement,
+  returnTotal,
+  returnableQuantity,
   billLine,
   billMessage,
   billPayload,
@@ -327,5 +337,135 @@ describe('statusClass', () => {
     expect(statusClass({ value: 'paid' })).toBe('badge-active')
     expect(statusClass({ value: 'partly_paid' })).toBe('badge-warning')
     expect(statusClass({ value: 'unpaid' })).toBe('badge-danger')
+  })
+})
+
+describe('changing a saved bill', () => {
+  const saved = {
+    total: 880,
+    paid_amount: 700,
+    refunded_amount: 100,
+    returned_amount: 0,
+    due_amount: 280,
+    items: [],
+  }
+  const item = {
+    id: 31,
+    product_variant_id: 70,
+    product_name: 'Wire Nails',
+    variant_name: '2 inch',
+    unit: 'kg',
+    quantity: 1.5,
+    returned_quantity: 0.5,
+    price: 120,
+    list_price: 120,
+    line_total: 180,
+    current: { stock_quantity: 18.5, allow_decimal: true, unit_name: 'Kilogram' },
+  }
+
+  it('puts a saved line in the form, counting its own items as in stock', () => {
+    const line = editLine(item)
+
+    expect(line).toMatchObject({
+      id: 31,
+      variant_id: 70,
+      unit: { short_name: 'kg', name: 'Kilogram', allow_decimal: true },
+      stock: 20,
+      quantity: 1.5,
+      price: 120,
+      original: { quantity: 1.5, price: 120 },
+    })
+    expect(editLine({ ...item, current: null }).stock).toBeNull()
+    expect(isShortOfStock(editLine({ ...item, current: null }))).toBe(false)
+  })
+
+  it('sends saved lines with their id and new ones without', () => {
+    const lines = [
+      { ...editLine(item), quantity: '2' },
+      { ...billLine(nails, nails.variants[0]), variant_id: 71, price: 130 },
+    ]
+
+    expect(
+      editPayload({ name: 'Ramesh', mobile: '9876543210', address: '' }, lines, {
+        method: 'cash',
+        reference: 'x',
+      }),
+    ).toEqual({
+      customer: { name: 'Ramesh', mobile: '9876543210', address: null },
+      items: [
+        { id: 31, product_variant_id: 70, quantity: 2, price: 120 },
+        { product_variant_id: 71, quantity: 1, price: 130 },
+      ],
+      refund: { method: 'cash', reference: null },
+    })
+    expect(editPayload({ name: 'R', mobile: '9876543210', address: '' }, lines).refund).toBeNull()
+  })
+
+  it('works out what has to be given back when the total drops below what was paid', () => {
+    expect(netPaid(saved)).toBe(600)
+    expect(refundAfterEdit(saved, 880)).toBe(0)
+    expect(refundAfterEdit(saved, 450)).toBe(150)
+    expect(refundAfterEdit({ ...saved, returned_amount: 100 }, 650)).toBe(50)
+  })
+})
+
+describe('returns and cancelling', () => {
+  const item = { id: 31, quantity: 3, returned_quantity: 1, price: 350 }
+
+  it('knows how much of a line can still come back', () => {
+    expect(returnableQuantity(item)).toBe(2)
+    expect(returnableQuantity({ quantity: 1.5, returned_quantity: 1.2 })).toBe(0.3)
+  })
+
+  it('takes a return off the due first and gives back the rest', () => {
+    const rows = [{ ...returnRow(item), quantity: '2' }]
+
+    expect(returnTotal(rows)).toBe(700)
+    expect(returnSettlement({ due_amount: 450 }, 700)).toEqual({ dueReduced: 450, refund: 250 })
+    expect(returnSettlement({ due_amount: 900 }, 700)).toEqual({ dueReduced: 700, refund: 0 })
+  })
+
+  it('sends only the lines coming back', () => {
+    const rows = [
+      { ...returnRow(item), quantity: '1' },
+      { ...returnRow({ ...item, id: 32 }), quantity: '' },
+    ]
+
+    expect(returnPayload(rows, ' Wrong size ', { method: 'upi', reference: ' R1 ' })).toEqual({
+      items: [{ bill_item_id: 31, quantity: 1 }],
+      note: 'Wrong size',
+      refund: { method: 'upi', reference: 'R1' },
+    })
+    expect(returnPayload(rows, '', null).refund).toBeNull()
+    expect(cancelPayload('  Made twice ', { method: 'cash', reference: 'x' })).toEqual({
+      reason: 'Made twice',
+      refund: { method: 'cash', reference: null },
+    })
+  })
+
+  it('shows returned and cancelled bills, and says so on WhatsApp', () => {
+    expect(statusClass({ value: 'returned' })).toBe('badge-muted')
+    expect(statusClass({ value: 'cancelled' })).toBe('badge-muted')
+
+    const shop = { name: 'Sharma Hardware', address: null, phone: null }
+    const bill = {
+      bill_number: 'INV-2026-0007',
+      created_at: '2026-11-02T10:15:00Z',
+      customer: { name: 'Ramesh Kumar', mobile: '9876543210' },
+      status: { value: 'cancelled', label: 'Cancelled' },
+      total: 700,
+      returned_amount: 350,
+      paid_amount: 700,
+      refunded_amount: 700,
+      due_amount: 0,
+      items: [],
+      payments: [{ method: { value: 'cash', label: 'Cash' }, amount: 700 }],
+    }
+
+    const message = billMessage(bill, shop)
+
+    expect(message).toContain('*This bill has been cancelled.*')
+    expect(message).toContain('Returned: −₹350.00')
+    expect(message).toContain('Given back: ₹700.00')
   })
 })

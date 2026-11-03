@@ -12,6 +12,9 @@ enum ActivityAction: string
     case LoginFailed = 'auth.login_failed';
 
     case BillCreated = 'bill.created';
+    case BillUpdated = 'bill.updated';
+    case BillCancelled = 'bill.cancelled';
+    case BillReturned = 'bill.returned';
     case BillPaymentReceived = 'payment.on_bill';
     case DuesPaymentReceived = 'payment.towards_dues';
 
@@ -41,7 +44,7 @@ enum ActivityAction: string
     {
         return match ($this) {
             self::LoggedIn, self::LoggedOut, self::LoginFailed => ActivitySection::Logins,
-            self::BillCreated => ActivitySection::Bills,
+            self::BillCreated, self::BillUpdated, self::BillCancelled, self::BillReturned => ActivitySection::Bills,
             self::BillPaymentReceived, self::DuesPaymentReceived => ActivitySection::Payments,
             self::CustomerCreated, self::CustomerUpdated => ActivitySection::Customers,
             self::StockEntryCreated, self::StockEntryDeleted, self::StockCorrected => ActivitySection::Stock,
@@ -59,6 +62,9 @@ enum ActivityAction: string
             self::LoggedOut => 'Logged out',
             self::LoginFailed => 'Failed login',
             self::BillCreated => 'Bill made',
+            self::BillUpdated => 'Bill edited',
+            self::BillCancelled => 'Bill cancelled',
+            self::BillReturned => 'Items returned',
             self::BillPaymentReceived => 'Payment on a bill',
             self::DuesPaymentReceived => 'Payment towards dues',
             self::CustomerCreated => 'Customer added',

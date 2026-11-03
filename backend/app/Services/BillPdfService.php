@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\Bill;
 use App\Models\BillItem;
 use App\Models\BillPayment;
+use App\Models\BillRefund;
+use App\Models\BillReturn;
+use App\Models\BillReturnItem;
 use App\Support\MobileNumber;
 use App\Support\Money;
 use Carbon\CarbonInterface;
@@ -59,16 +62,37 @@ class BillPdfService
                     'price' => $this->money($item->price),
                     'amount' => $this->money($item->line_total),
                 ])->all(),
+                // Money in, and money given back, in the order it happened.
                 'payments' => $bill->payments->map(fn (BillPayment $payment) => [
                     'method' => $payment->method->label(),
                     'reference' => $payment->reference,
                     'date' => $this->dateTime($payment->received_at),
                     'amount' => $this->money($payment->amount),
+                    'at' => $payment->received_at,
+                ])->concat($bill->refunds->map(fn (BillRefund $refund) => [
+                    'method' => 'Refund · '.$refund->method->label(),
+                    'reference' => $refund->reference,
+                    'date' => $this->dateTime($refund->refunded_at),
+                    'amount' => '−'.$this->money($refund->amount),
+                    'at' => $refund->refunded_at,
+                ]))->sortBy('at')->values()->all(),
+                'returns' => $bill->returns->map(fn (BillReturn $return) => [
+                    'number' => $return->return_number,
+                    'date' => $this->dateTime($return->returned_at),
+                    'items' => $return->items->map(fn (BillReturnItem $item) => $item->product_name
+                        .($item->variant_name ? " · {$item->variant_name}" : '').': '.$this->quantity($item->quantity).' '.$item->unit)->all(),
+                    'amount' => $this->money($return->amount),
                 ])->all(),
                 'total' => $this->money($bill->total),
+                'returned' => Money::toPaise($bill->returned_amount) > 0 ? $this->money($bill->returned_amount) : null,
                 'paid' => $this->money($bill->paid_amount),
+                'refunded' => Money::toPaise($bill->refunded_amount) > 0 ? $this->money($bill->refunded_amount) : null,
                 'due' => $this->money($bill->due_amount),
                 'owing' => Money::toPaise($bill->due_amount) > 0,
+                'cancelled' => $bill->cancelled_at ? [
+                    'date' => $this->dateTime($bill->cancelled_at),
+                    'reason' => $bill->cancel_reason,
+                ] : null,
             ],
         ])->render();
     }

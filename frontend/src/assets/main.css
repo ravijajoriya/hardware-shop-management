@@ -217,6 +217,12 @@ textarea.input {
   border-color: currentColor;
 }
 
+/* Nothing owed because the items came back or the bill was cancelled. */
+.badge-muted {
+  border-style: dashed;
+  opacity: 0.75;
+}
+
 .alert-error {
   padding: 0.6rem 0.75rem;
   color: var(--color-danger);

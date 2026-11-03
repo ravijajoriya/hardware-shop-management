@@ -12,12 +12,16 @@ import {
   billPayload,
   billPayments,
   billTotals,
+  editLine,
+  editPayload,
   isShortOfStock,
   isValidMobile,
   itemName,
   lineTotal,
+  netPaid,
   normalizeMobile,
   paymentRow,
+  refundAfterEdit,
   toPaise,
 } from '@/utils/billing'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -25,13 +29,31 @@ import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 import ProductPicker from '@/components/ProductPicker.vue'
 
+const props = defineProps({
+  // Set when editing a saved bill; a new bill has none.
+  id: { type: String, default: null },
+})
+
 const auth = useAuthStore()
 const bills = useBillStore()
 const customers = useCustomerStore()
 const route = useRoute()
 const router = useRouter()
 
-const listRoute = computed(() => ({ name: 'bills', query: bills.listQuery }))
+const isEdit = computed(() => props.id !== null)
+
+// The bill being edited, as it was saved.
+const original = ref(null)
+const loading = ref(props.id !== null)
+const loadError = ref('')
+// The edit as it started, to tell whether anything has changed.
+let startingPoint = ''
+
+const backRoute = computed(() =>
+  isEdit.value
+    ? { name: 'bill-show', params: { id: props.id } }
+    : { name: 'bills', query: bills.listQuery },
+)
 
 const saving = ref(false)
 const error = ref('')
@@ -72,6 +94,10 @@ const mobileComplete = computed(() => isValidMobile(mobile.value))
 const renaming = computed(() => {
   const typed = customer.name.trim()
 
+  if (isEdit.value && typed === original.value?.customer.name) {
+    return false
+  }
+
   return Boolean(known.value && typed && typed !== known.value.name)
 })
 
@@ -81,6 +107,10 @@ const addressNote = computed(() => {
   const saved = known.value?.address ?? ''
 
   if (!known.value || typed === saved) {
+    return ''
+  }
+
+  if (isEdit.value && typed === (original.value?.customer.address ?? '')) {
     return ''
   }
 
@@ -114,10 +144,14 @@ async function lookup(value) {
   try {
     const found = await customers.lookup(value)
 
-    // The number may have changed while this one was being checked.
+    // The number may have changed while this one was being checked. An edited bill keeps the
+    // details it was saved with unless its number is changed.
     if (request === latestLookup) {
       known.value = found
-      fillDetails(found)
+
+      if (!isEdit.value || value !== original.value?.customer.mobile) {
+        fillDetails(found)
+      }
     }
   } catch (e) {
     if (request === latestLookup) {
@@ -146,6 +180,9 @@ function fillDetails(found) {
 
 const lines = ref([])
 const picker = ref(null)
+
+// Once items have come back from a bill, only its customer details can change.
+const itemsLocked = computed(() => isEdit.value && original.value?.can.edit_items === false)
 
 function lineFor(variantId) {
   return lines.value.find((line) => line.variant_id === variantId)
@@ -196,6 +233,32 @@ const payments = computed(() =>
 )
 const totals = computed(() => billTotals(lines.value, payments.value))
 
+// --- Editing a saved bill: what is owed after the change, and what to give back ---
+
+const refund = reactive({ method: 'cash', reference: '' })
+const refundDue = computed(() =>
+  original.value ? refundAfterEdit(original.value, billTotal.value) : 0,
+)
+const dueAfterEdit = computed(() => {
+  if (!original.value) {
+    return 0
+  }
+
+  const owed =
+    toPaise(billTotal.value) -
+    toPaise(original.value.returned_amount) -
+    toPaise(netPaid(original.value))
+
+  return Math.max(owed, 0) / 100
+})
+const totalChanged = computed(
+  () => original.value && toPaise(billTotal.value) !== toPaise(original.value.total),
+)
+
+function changedFrom(line, field) {
+  return line.original && toPaise(line[field]) !== toPaise(line.original[field])
+}
+
 // What is left to pay after the other split rows, for the "Rest" shortcut.
 function restFor(row) {
   const others = splitRows.value
@@ -232,8 +295,29 @@ function paymentRowError(index) {
 const shortLines = computed(() => lines.value.filter(isShortOfStock))
 
 // What the shopkeeper should agree to before saving; empty when there is nothing to check.
+// An edit is always confirmed, with what it changes.
 const confirmMessage = computed(() => {
   const parts = []
+
+  if (isEdit.value) {
+    parts.push(
+      totalChanged.value
+        ? `The total changes from ${formatMoney(original.value.total)} to ${formatMoney(billTotal.value)}.`
+        : `Save the changes to ${original.value.bill_number}?`,
+    )
+
+    if (refundDue.value > 0) {
+      parts.push(`${formatMoney(refundDue.value)} is given back to ${customer.name.trim()}.`)
+    } else if (dueAfterEdit.value > 0) {
+      parts.push(`${formatMoney(dueAfterEdit.value)} will be due on the bill.`)
+    }
+
+    if (shortLines.value.length) {
+      parts.push('Some items are more than the stock shows; their count will go below zero.')
+    }
+
+    return parts.join(' ')
+  }
 
   if (totals.value.due > 0) {
     parts.push(
@@ -254,6 +338,16 @@ const confirmMessage = computed(() => {
 
 function submit() {
   error.value = ''
+
+  if (isEdit.value) {
+    if (lines.value.length === 0) {
+      error.value = 'A bill needs at least one item. To undo the whole bill, cancel it instead.'
+      return
+    }
+
+    confirming.value = true
+    return
+  }
 
   if (paymentMode.value === 'split') {
     // Empty rows are dropped, so the server's messages line up with the rows on screen.
@@ -290,6 +384,17 @@ async function save() {
   fieldErrors.value = {}
 
   try {
+    if (isEdit.value) {
+      await bills.update(
+        props.id,
+        editPayload(customer, lines.value, refundDue.value > 0 ? refund : null),
+      )
+
+      saved = true
+      router.replace({ name: 'bill-show', params: { id: props.id }, query: { saved: 'edited' } })
+      return
+    }
+
     const bill = await bills.create(billPayload(customer, lines.value, payments.value))
 
     saved = true
@@ -309,21 +414,77 @@ async function save() {
 // Leaving by mistake would lose the items picked so far. A logout or an expired session
 // leaves anyway.
 onBeforeRouteLeave(() => {
-  if (!saved && auth.isAuthenticated && lines.value.length > 0) {
+  if (saved || !auth.isAuthenticated) {
+    return
+  }
+
+  if (isEdit.value) {
+    const changed =
+      original.value && JSON.stringify(editPayload(customer, lines.value)) !== startingPoint
+
+    return changed ? window.confirm('Leave without saving the changes to this bill?') : undefined
+  }
+
+  if (lines.value.length > 0) {
     return window.confirm('Leave without saving this bill? The items on it will be lost.')
   }
 })
 
-onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
+async function load() {
+  loading.value = true
+  loadError.value = ''
+
+  try {
+    const { bill } = await bills.fetchOne(props.id)
+
+    original.value = bill
+    Object.assign(customer, {
+      mobile: bill.customer.mobile,
+      name: bill.customer.name,
+      address: bill.customer.address ?? '',
+    })
+    lines.value = bill.items.map(editLine)
+    startingPoint = JSON.stringify(editPayload(customer, lines.value))
+  } catch (e) {
+    loadError.value = e.status === 404 ? 'This bill does not exist.' : e.message
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  if (isEdit.value) {
+    load()
+  } else if (customer.mobile) {
+    focusSearch()
+  } else {
+    mobileInput.value?.focus()
+  }
+})
 </script>
 
 <template>
   <div class="page-header">
-    <h1 class="page-title">New bill</h1>
-    <RouterLink class="btn" :to="listRoute">Back to bills</RouterLink>
+    <h1 class="page-title">
+      {{ isEdit ? `Edit bill ${original?.bill_number ?? ''}` : 'New bill' }}
+    </h1>
+    <RouterLink class="btn" :to="backRoute">
+      {{ isEdit ? 'Back to the bill' : 'Back to bills' }}
+    </RouterLink>
   </div>
 
-  <form @submit.prevent="submit">
+  <p v-if="loading">Loading…</p>
+
+  <div v-else-if="loadError" class="alert-error load-error" role="alert">
+    <span>{{ loadError }}</span>
+    <button type="button" class="btn" @click="load">Try again</button>
+  </div>
+
+  <p v-else-if="original?.status.value === 'cancelled'" class="alert-error" role="alert">
+    This bill is cancelled, so it cannot be edited.
+  </p>
+
+  <form v-else @submit.prevent="submit">
     <section class="form-section">
       <h2>Customer</h2>
 
@@ -410,7 +571,13 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
     <section class="form-section">
       <h2>Items</h2>
 
+      <p v-if="itemsLocked" class="alert-note">
+        Items on this bill have been returned, so only the customer details can be changed. For
+        anything else, use Return items on the bill.
+      </p>
+
       <ProductPicker
+        v-if="!itemsLocked"
         ref="picker"
         placeholder="Search by product name or item code to add it"
         label="Find a product to add to the bill"
@@ -448,6 +615,7 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
                 :min="line.unit.allow_decimal ? 0.001 : 1"
                 :step="line.unit.allow_decimal ? 'any' : 1"
                 required
+                :disabled="itemsLocked"
                 :aria-label="`Quantity of ${itemName(line)}, in ${line.unit.name}`"
                 @keydown.enter.prevent="focusSearch"
               />
@@ -457,6 +625,9 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
               {{ errorFor(`items.${index}.quantity`) }}
             </p>
             <p v-else-if="isShortOfStock(line)" class="stock-warning">{{ stockNote(line) }}</p>
+            <p v-else-if="changedFrom(line, 'quantity')" class="was">
+              was {{ formatQuantity(line.original.quantity, line.unit) }}
+            </p>
           </div>
 
           <div class="line-price">
@@ -468,11 +639,15 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
               min="0"
               step="0.01"
               required
+              :disabled="itemsLocked"
               :aria-label="`Price of ${itemName(line)}, per ${line.unit.short_name}`"
               @keydown.enter.prevent="focusSearch"
             />
             <p v-if="errorFor(`items.${index}.price`)" class="field-error">
               {{ errorFor(`items.${index}.price`) }}
+            </p>
+            <p v-else-if="changedFrom(line, 'price')" class="was">
+              was {{ formatMoney(line.original.price) }}
             </p>
             <p v-else-if="toPaise(line.price) !== toPaise(line.list_price)" class="list-price">
               List price <InfoTip term="List price" /> {{ formatMoney(line.list_price) }}
@@ -485,6 +660,7 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
           </div>
 
           <button
+            v-if="!itemsLocked"
             type="button"
             class="btn remove"
             :aria-label="`Remove ${itemName(line)}`"
@@ -503,7 +679,70 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
       <p v-if="errorFor('items')" class="field-error">{{ errorFor('items') }}</p>
     </section>
 
-    <section class="form-section">
+    <section v-if="isEdit" class="form-section">
+      <h2>Money</h2>
+
+      <dl class="totals">
+        <div>
+          <dt>Total</dt>
+          <dd>{{ formatMoney(billTotal) }}</dd>
+          <span v-if="totalChanged" class="was">was {{ formatMoney(original.total) }}</span>
+        </div>
+        <div v-if="original.returned_amount > 0">
+          <dt>Returned</dt>
+          <dd>−{{ formatMoney(original.returned_amount) }}</dd>
+        </div>
+        <div>
+          <dt>Paid so far</dt>
+          <dd>{{ formatMoney(netPaid(original)) }}</dd>
+        </div>
+        <div :class="{ owing: dueAfterEdit > 0 }">
+          <dt>Due after saving <InfoTip term="Due" /></dt>
+          <dd>{{ formatMoney(dueAfterEdit) }}</dd>
+        </div>
+      </dl>
+
+      <template v-if="refundDue > 0">
+        <p class="refund-note">
+          The new total is less than what has been paid. Give back
+          <strong>{{ formatMoney(refundDue) }}</strong
+          >:
+        </p>
+        <fieldset class="choice-group">
+          <legend>Given back by</legend>
+          <label v-for="method in PAYMENT_METHODS" :key="method.value" class="choice">
+            <input
+              v-model="refund.method"
+              type="radio"
+              name="refund_method"
+              :value="method.value"
+            />
+            {{ method.label }}
+            <InfoTip v-if="method.value === 'upi'" term="UPI" />
+          </label>
+        </fieldset>
+        <div v-if="refund.method !== 'cash'" class="field reference">
+          <FieldLabel input-id="bill-refund-reference" term="Transaction number">
+            Transaction number <span class="optional">optional</span>
+          </FieldLabel>
+          <input
+            id="bill-refund-reference"
+            v-model="refund.reference"
+            class="input"
+            type="text"
+            maxlength="100"
+            autocomplete="off"
+          />
+        </div>
+        <p v-if="errorFor('refund.method')" class="field-error">{{ errorFor('refund.method') }}</p>
+      </template>
+
+      <p class="hint money-note">
+        Payments are not changed here. To take more money, use Receive payment on the bill.
+      </p>
+    </section>
+
+    <section v-else class="form-section">
       <h2>Payment</h2>
 
       <fieldset class="choice-group">
@@ -634,19 +873,21 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
 
     <p v-if="error" class="alert-error" role="alert">{{ error }}</p>
 
+    <p v-if="errorFor('bill')" class="alert-error" role="alert">{{ errorFor('bill') }}</p>
+
     <div class="form-actions">
-      <RouterLink class="btn" :to="listRoute">Cancel</RouterLink>
+      <RouterLink class="btn" :to="backRoute">Cancel</RouterLink>
       <button type="submit" class="btn btn-primary" :disabled="saving">
-        {{ saving ? 'Saving…' : 'Save bill' }}
+        {{ saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save bill' }}
       </button>
     </div>
   </form>
 
   <ConfirmDialog
     v-if="confirming"
-    title="Save this bill?"
+    :title="isEdit ? 'Save the changes?' : 'Save this bill?'"
     :message="confirmMessage"
-    confirm-label="Save bill"
+    :confirm-label="isEdit ? 'Save changes' : 'Save bill'"
     :danger="false"
     :busy="saving"
     @confirm="save"
@@ -957,6 +1198,43 @@ onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
 
 .totals .owing dd {
   color: var(--color-danger);
+}
+
+.totals .was,
+.line .was {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.line .was {
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
+.alert-note {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  background: var(--color-background);
+  border: 1px dashed var(--color-border-hover);
+  border-radius: 6px;
+}
+
+.refund-note {
+  margin: 1rem 0 0.5rem;
+}
+
+.refund-note strong {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.money-note {
+  margin-top: 0.75rem;
+}
+
+.line .input:disabled {
+  opacity: 0.6;
 }
 
 .totals + .field-error {

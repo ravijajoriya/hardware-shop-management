@@ -2,9 +2,13 @@
 
 namespace App\Repositories;
 
+use App\Enums\BillStatus;
 use App\Models\User;
+use Closure;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Customers are the users who are not admins.
@@ -55,7 +59,7 @@ class CustomerRepository
     {
         return $customer
             ->loadCount('bills')
-            ->loadSum('bills as total_billed', 'total')
+            ->loadSum($this->billed(), $this->netTotal())
             ->loadSum('bills as total_due', 'due_amount');
     }
 
@@ -94,7 +98,23 @@ class CustomerRepository
     {
         return $query
             ->withCount('bills')
-            ->withSum('bills as total_billed', 'total')
+            ->withSum($this->billed(), $this->netTotal())
             ->withSum('bills as total_due', 'due_amount');
+    }
+
+    /**
+     * "Total billed" counts what customers bought and kept: cancelled bills are left out, and
+     * returns are taken off.
+     *
+     * @return array<string, Closure>
+     */
+    private function billed(): array
+    {
+        return ['bills as total_billed' => fn ($bills) => $bills->where('status', '!=', BillStatus::Cancelled->value)];
+    }
+
+    private function netTotal(): Expression
+    {
+        return DB::raw('total - returned_amount');
     }
 }

@@ -61,6 +61,34 @@ describe('bill store', () => {
     expect(JSON.parse(options.body)).toEqual(payload)
   })
 
+  it('edits, cancels and takes returns on a bill', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: bill, shop }))
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: bill, shop }))
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, { data: bill, shop, return_number: 'RET-2026-0001' }),
+    )
+    const store = useBillStore()
+
+    expect(await store.update(9, { items: [] })).toEqual({ bill, shop })
+    expect(await store.cancel(9, { reason: 'Made twice' })).toEqual({ bill, shop })
+    expect(await store.createReturn(9, { items: [] })).toEqual({
+      bill,
+      shop,
+      returnNumber: 'RET-2026-0001',
+    })
+
+    const calls = fetchMock.mock.calls.map(([url, options]) => [
+      url.replace(/^.*\/api/, ''),
+      options.method,
+    ])
+    expect(calls).toEqual([
+      ['/admin/bills/9', 'PUT'],
+      ['/admin/bills/9/cancel', 'POST'],
+      ['/admin/bills/9/returns', 'POST'],
+    ])
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ reason: 'Made twice' })
+  })
+
   it('takes a payment towards one bill', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { data: { ...bill, due_amount: 0 }, shop }))
     const store = useBillStore()

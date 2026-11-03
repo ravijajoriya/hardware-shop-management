@@ -2,23 +2,28 @@
 
 namespace App\Enums;
 
-/**
- * How much of a bill has been paid.
- */
 enum BillStatus: string
 {
     case Paid = 'paid';
     case PartlyPaid = 'partly_paid';
     case Unpaid = 'unpaid';
+    case Returned = 'returned';
+    case Cancelled = 'cancelled';
 
     /**
-     * The status for a bill with this total and this much paid, both in paise.
+     * The status for a bill from its amounts, all in paise. What the customer has to pay is
+     * the total less returns; what they have paid is the payments less refunds.
+     * (A cancelled bill is marked so when it is cancelled, whatever its amounts.)
      */
-    public static function forAmounts(int $total, int $paid): self
+    public static function forAmounts(int $total, int $paid, int $returned = 0, int $refunded = 0): self
     {
+        $payable = $total - $returned;
+        $netPaid = $paid - $refunded;
+
         return match (true) {
-            $paid >= $total => self::Paid,
-            $paid === 0 => self::Unpaid,
+            $total > 0 && $payable <= 0 => self::Returned,
+            $netPaid >= $payable => self::Paid,
+            $netPaid <= 0 => self::Unpaid,
             default => self::PartlyPaid,
         };
     }
@@ -29,6 +34,8 @@ enum BillStatus: string
             self::Paid => 'Paid',
             self::PartlyPaid => 'Partly paid',
             self::Unpaid => 'Unpaid',
+            self::Returned => 'Fully returned',
+            self::Cancelled => 'Cancelled',
         };
     }
 }

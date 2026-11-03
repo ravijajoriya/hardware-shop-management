@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { formatDate, formatMoney } from '@/utils/format'
+import { moneyKept } from '@/utils/reports'
 import InfoTip from '@/components/InfoTip.vue'
 import WhereIsIt from '@/components/WhereIsIt.vue'
 
@@ -14,7 +15,7 @@ const loading = ref(false)
 const error = ref('')
 
 const today = computed(() => store.today)
-const online = computed(() => today.value.collected.upi + today.value.collected.bank_transfer)
+const kept = computed(() => moneyKept(today.value.collected, today.value.refunded))
 
 async function load() {
   loading.value = true
@@ -56,22 +57,39 @@ onMounted(load)
 
     <div v-else class="stats" :class="{ busy: loading }">
       <div class="stat">
-        <span class="stat-label">Sales</span>
+        <span class="stat-label">Net sales <InfoTip term="Net sales" /></span>
         <span class="stat-value">{{ formatMoney(today.sales) }}</span>
         <RouterLink class="stat-note" :to="{ name: 'bills' }">
           {{ today.bills }} {{ today.bills === 1 ? 'bill' : 'bills' }} made
         </RouterLink>
+        <span v-if="today.returns > 0" class="stat-note">
+          after {{ formatMoney(today.returns) }} returned
+        </span>
+      </div>
+
+      <div class="stat" :class="{ 'stat-owing': today.profit < 0 }">
+        <span class="stat-label">Profit <InfoTip term="Profit" /></span>
+        <span class="stat-value">{{ formatMoney(today.profit) }}</span>
+        <span class="stat-note">
+          Margin <InfoTip term="Margin" /> {{ today.margin === null ? '—' : `${today.margin}%`
+          }}{{ today.cost_estimated ? ' (estimated)' : '' }}
+        </span>
+        <RouterLink class="stat-note" :to="{ name: 'reports' }">See the sales report</RouterLink>
       </div>
 
       <div class="stat">
         <span class="stat-label">Money received</span>
-        <span class="stat-value">{{ formatMoney(today.collected.total) }}</span>
+        <span class="stat-value">{{ formatMoney(kept.total) }}</span>
         <span class="stat-note">
-          Cash {{ formatMoney(today.collected.cash) }} · Online {{ formatMoney(online) }}
+          Cash {{ formatMoney(kept.cash) }} · Online {{ formatMoney(kept.online) }}
         </span>
         <span class="stat-note">
-          UPI <InfoTip term="UPI" /> {{ formatMoney(today.collected.upi) }} · Bank
-          {{ formatMoney(today.collected.bank_transfer) }}
+          UPI <InfoTip term="UPI" /> {{ formatMoney(kept.upi) }} · Bank
+          {{ formatMoney(kept.bank_transfer) }}
+        </span>
+        <span v-if="today.refunded.total > 0" class="stat-note">
+          {{ formatMoney(today.collected.total) }} in, {{ formatMoney(today.refunded.total) }}
+          given back
         </span>
       </div>
 
@@ -91,7 +109,8 @@ onMounted(load)
     </div>
 
     <p class="note">
-      Money received counts every payment taken today, including dues paid for older bills.
+      Money received counts every payment taken today, including dues paid for older bills, less
+      anything given back.
     </p>
   </section>
 

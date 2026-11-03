@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BillIndexRequest;
+use App\Http\Requests\Admin\CancelBillRequest;
 use App\Http\Requests\Admin\PayDuesRequest;
 use App\Http\Requests\Admin\StoreBillRequest;
+use App\Http\Requests\Admin\UpdateBillRequest;
 use App\Http\Resources\BillResource;
 use App\Models\Bill;
 use App\Services\BillPdfService;
@@ -44,6 +46,24 @@ class BillController extends Controller
     public function show(Bill $bill): BillResource
     {
         return (new BillResource($this->bills->details($bill)))
+            ->additional(['shop' => $this->shop->details()]);
+    }
+
+    /**
+     * Fix a bill in place: its customer details, items, quantities and prices.
+     */
+    public function update(UpdateBillRequest $request, Bill $bill): BillResource
+    {
+        return (new BillResource($this->bills->update($bill, $request->validated(), $request->user())))
+            ->additional(['shop' => $this->shop->details()]);
+    }
+
+    /**
+     * Cancel a bill: its stock comes back and anything paid on it is given back.
+     */
+    public function cancel(CancelBillRequest $request, Bill $bill): BillResource
+    {
+        return (new BillResource($this->bills->cancel($bill, $request->validated(), $request->user())))
             ->additional(['shop' => $this->shop->details()]);
     }
 
