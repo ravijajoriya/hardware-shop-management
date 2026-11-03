@@ -1,8 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useBillStore } from '@/stores/bills'
-import { formatDateTime, formatMoney } from '@/utils/format'
+import { formatDate, formatDateTime, formatMoney } from '@/utils/format'
 import {
   BILL_CHANGES,
   BILL_SORTS,
@@ -10,9 +10,12 @@ import {
   OVERDUE_DAYS,
   PAYMENT_METHODS,
   formatMobile,
+  methodLabel,
   statusClass,
 } from '@/utils/billing'
 import { PERIODS, periodOf, periodRange } from '@/utils/reports'
+import { useMediaQuery } from '@/composables/useMediaQuery'
+import { useScrollLock } from '@/composables/useScrollLock'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 
@@ -118,6 +121,74 @@ function clearFilters() {
   router.replace({ query: {} })
 }
 
+// On a phone the filters wait in a panel that slides up from the bottom, and the ones in use
+// show as tags above the list, each with its own ✕.
+const isPhone = useMediaQuery('(max-width: 640px)')
+const filtersOpen = ref(false)
+const sheetOpen = computed(() => filtersOpen.value && isPhone.value)
+
+const filtersButton = ref(null)
+const sheetClose = ref(null)
+
+useScrollLock(sheetOpen)
+
+watch(sheetOpen, async (open, wasOpen) => {
+  await nextTick()
+
+  if (open) {
+    sheetClose.value?.focus()
+  } else if (wasOpen) {
+    filtersButton.value?.focus()
+  }
+})
+
+function dayLabel(day) {
+  return formatDate(`${day}T00:00:00`)
+}
+
+function dateLabel(from, to) {
+  const period = PERIODS.find((option) => option.value === dateChoice.value)
+
+  if (period) {
+    return period.label
+  }
+
+  if (from && to) {
+    return from === to ? dayLabel(from) : `${dayLabel(from)} – ${dayLabel(to)}`
+  }
+
+  return from ? `From ${dayLabel(from)}` : `Until ${dayLabel(to)}`
+}
+
+// The filters in use, apart from the search, each with what removing it changes.
+const activeFilters = computed(() => {
+  const { from, to, status, method, overdue, changes, product } = filters.value
+  const labelOf = (list, value) => list.find((option) => option.value === value)?.label ?? value
+
+  return [
+    (from || to) && { key: 'date', label: dateLabel(from, to), clear: { from: '', to: '' } },
+    status && { key: 'status', label: labelOf(BILL_STATUSES, status), clear: { status: '' } },
+    method && { key: 'method', label: `Paid by ${methodLabel(method)}`, clear: { method: '' } },
+    overdue && { key: 'overdue', label: `Due over ${overdue} days`, clear: { overdue: '' } },
+    changes && { key: 'changes', label: labelOf(BILL_CHANGES, changes), clear: { changes: '' } },
+    product && { key: 'product', label: `Product: ${product}`, clear: { product: '' } },
+  ].filter(Boolean)
+})
+
+function removeFilter(chip) {
+  if (chip.key === 'date') {
+    choosingDates.value = false
+  }
+
+  filter(chip.clear)
+}
+
+// Clears what the panel sets, keeping the search and the order.
+function clearPanel() {
+  choosingDates.value = false
+  filter({ product: '', from: '', to: '', status: '', method: '', overdue: '', changes: '' })
+}
+
 const totals = computed(() => store.totals)
 const counted = computed(() => (totals.value ? totals.value.bills - totals.value.cancelled : 0))
 
@@ -165,17 +236,97 @@ watch(
       />
       <input
         v-model="product"
-        class="input"
+        class="input product-input"
         type="search"
         placeholder="Product name or item code"
         aria-label="Bills with this product"
       />
-      <button v-if="isFiltered || filters.sort" type="button" class="btn" @click="clearFilters">
+      <button
+        v-if="isFiltered || filters.sort"
+        type="button"
+        class="btn clear-all"
+        @click="clearFilters"
+      >
         Clear filters
       </button>
     </div>
 
-    <div class="choices">
+    <!-- On a phone: a Filters button opening the panel, the order, and the filters in use. -->
+    <div class="phone-bar" :inert="sheetOpen || undefined">
+      <button
+        ref="filtersButton"
+        type="button"
+        class="btn filters-button"
+        aria-controls="bill-filters"
+        :aria-expanded="sheetOpen"
+        @click="filtersOpen = true"
+      >
+        Filters
+        <span v-if="activeFilters.length" class="filter-count">{{ activeFilters.length }}</span>
+      </button>
+      <div class="sort">
+        <label for="bills-sort-phone">Sort</label>
+        <select
+          id="bills-sort-phone"
+          class="input"
+          :value="filters.sort"
+          @change="filter({ sort: $event.target.value })"
+        >
+          <option v-for="sort in BILL_SORTS" :key="sort.value" :value="sort.value">
+            {{ sort.label }}
+          </option>
+        </select>
+      </div>
+    </div>
+    <ul
+      v-if="activeFilters.length"
+      class="chips"
+      aria-label="Filters in use"
+      :inert="sheetOpen || undefined"
+    >
+      <li v-for="chip in activeFilters" :key="chip.key">
+        <button
+          type="button"
+          class="chip"
+          :aria-label="`Remove filter: ${chip.label}`"
+          @click="removeFilter(chip)"
+        >
+          {{ chip.label }} <span aria-hidden="true">✕</span>
+        </button>
+      </li>
+    </ul>
+
+    <div
+      id="bill-filters"
+      class="choices"
+      :class="{ open: sheetOpen }"
+      :role="sheetOpen ? 'dialog' : undefined"
+      :aria-modal="sheetOpen ? 'true' : undefined"
+      :aria-labelledby="sheetOpen ? 'bill-filters-title' : undefined"
+      @keydown.esc="filtersOpen = false"
+    >
+      <div class="sheet-head">
+        <h2 id="bill-filters-title">Filters</h2>
+        <button
+          ref="sheetClose"
+          type="button"
+          class="btn sheet-close"
+          aria-label="Close filters"
+          @click="filtersOpen = false"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div class="choice-field sheet-product">
+        <label for="bills-product-phone">Product</label>
+        <input
+          id="bills-product-phone"
+          v-model="product"
+          class="input"
+          type="search"
+          placeholder="Product name or item code"
+        />
+      </div>
       <div class="choice-field">
         <label for="bills-date">Date</label>
         <select
@@ -271,7 +422,14 @@ watch(
           </option>
         </select>
       </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn" @click="clearPanel">Clear all</button>
+        <button type="button" class="btn btn-primary" @click="filtersOpen = false">
+          Show {{ store.meta.total }} {{ store.meta.total === 1 ? 'bill' : 'bills' }}
+        </button>
+      </div>
     </div>
+    <div v-if="sheetOpen" class="sheet-backdrop" aria-hidden="true" @click="filtersOpen = false" />
   </div>
 
   <p v-if="!loaded">Loading bills…</p>
@@ -285,7 +443,7 @@ watch(
     {{ isFiltered ? 'No bills match these filters.' : 'No bills yet. Make the first one.' }}
   </p>
 
-  <template v-else>
+  <div v-else class="bill-list" :inert="sheetOpen || undefined">
     <div class="list-head" :class="{ busy: loading }">
       <p v-if="totals" class="totals">
         <strong>{{ totals.bills }} {{ totals.bills === 1 ? 'bill' : 'bills' }}</strong>
@@ -335,19 +493,22 @@ watch(
                 {{ bill.bill_number }}
               </RouterLink>
             </td>
-            <td data-label="Date">{{ formatDateTime(bill.created_at) }}</td>
+            <td class="cell-date" data-label="Date">{{ formatDateTime(bill.created_at) }}</td>
             <td class="customer-cell" data-label="Customer">
               <div class="name">{{ bill.customer.name }}</div>
               <div class="details">{{ formatMobile(bill.customer.mobile) }}</div>
             </td>
-            <td class="num" data-label="Items">{{ bill.items_count }}</td>
-            <td class="num" data-label="Total">{{ formatMoney(bill.total) }}</td>
-            <td class="num" data-label="Paid">{{ formatMoney(bill.paid_amount) }}</td>
-            <td class="num" :class="{ owing: bill.due_amount > 0 }">
+            <td class="num cell-items" data-label="Items">
+              {{ bill.items_count
+              }}<span class="items-word">{{ bill.items_count === 1 ? ' item' : ' items' }}</span>
+            </td>
+            <td class="num cell-total" data-label="Total">{{ formatMoney(bill.total) }}</td>
+            <td class="num cell-paid" data-label="Paid">{{ formatMoney(bill.paid_amount) }}</td>
+            <td class="num cell-due" :class="{ owing: bill.due_amount > 0 }">
               <span class="cell-label">Due <InfoTip term="Due" /></span>
               {{ formatMoney(bill.due_amount) }}
             </td>
-            <td data-label="Status">
+            <td class="cell-status" data-label="Status">
               <span class="badge" :class="statusClass(bill.status)">{{ bill.status.label }}</span>
             </td>
           </tr>
@@ -376,7 +537,7 @@ watch(
         </button>
       </div>
     </nav>
-  </template>
+  </div>
 </template>
 
 <style scoped>
@@ -412,6 +573,16 @@ watch(
   display: flex;
   flex-direction: column;
   font-size: 0.85rem;
+}
+
+/* Only on a phone: the Filters bar, the tags, the panel's own parts and the item count's word. */
+.phone-bar,
+.chips,
+.sheet-head,
+.choice-field.sheet-product,
+.sheet-foot,
+.items-word {
+  display: none;
 }
 
 .choice-field > label,
@@ -499,5 +670,278 @@ watch(
 .pages {
   display: flex;
   gap: 0.5rem;
+}
+
+/*
+ * On a phone: the search, then a Filters button (with how many are on) and the order, then the
+ * filters in use as tags. The filters themselves wait in a panel that slides up from the bottom.
+ * Each bill is a slim card that opens the bill when tapped.
+ */
+@media (max-width: 640px) {
+  .typed > .product-input,
+  .typed > .clear-all,
+  .list-head .sort {
+    display: none;
+  }
+
+  .phone-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .filters-button {
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: hsla(160, 100%, 37%, 1);
+    border-radius: 999px;
+  }
+
+  .phone-bar .sort .input {
+    width: 9.5rem;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.7rem;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--color-heading);
+    background: var(--color-background-mute);
+    border: 1px solid var(--color-border-hover);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  .chip span {
+    opacity: 0.7;
+  }
+
+  /* The panel. */
+  .choices {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem 0.75rem;
+    max-height: 85vh;
+    padding: 0 1rem 1rem;
+    overflow-y: auto;
+    background: var(--color-background-soft);
+    border-top: 1px solid var(--color-border);
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    transform: translateY(100%);
+    visibility: hidden;
+    transition:
+      transform 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+
+  .choices.open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.25s ease;
+  }
+
+  .sheet-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 -1rem;
+    padding: 0.6rem 0.75rem 0.6rem 1rem;
+    background: var(--color-background-soft);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sheet-head h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-heading);
+  }
+
+  .sheet-close {
+    justify-content: center;
+    align-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+  }
+
+  .sheet-close svg {
+    width: 1.3rem;
+    height: 1.3rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .choice-field.sheet-product {
+    display: flex;
+    grid-column: 1 / -1;
+  }
+
+  .sheet-foot {
+    position: sticky;
+    bottom: -1rem;
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 0.5rem;
+    margin: 0.25rem -1rem -1rem;
+    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+    background: var(--color-background-soft);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .sheet-foot .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(0, 0, 0, 0.5);
+    animation: fade-in 0.25s ease;
+  }
+
+  /* A slim card for each bill: number and status, the customer, when and how many items,
+     then Total, Paid and Due side by side. */
+  .data-table.stack tr {
+    position: relative;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      'number number status'
+      'customer customer customer'
+      'date date items'
+      'total paid due';
+    gap: 0.3rem 0.75rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .data-table.stack td.cell-title {
+    grid-area: number;
+    align-self: center;
+  }
+
+  .data-table.stack td.cell-status {
+    grid-area: status;
+    justify-self: end;
+    align-self: center;
+  }
+
+  .data-table.stack td.customer-cell {
+    grid-area: customer;
+  }
+
+  .data-table.stack td.cell-date {
+    grid-area: date;
+  }
+
+  .data-table.stack td.cell-items {
+    grid-area: items;
+    text-align: right;
+  }
+
+  .data-table.stack td.cell-total {
+    grid-area: total;
+    margin-top: 0.3rem;
+  }
+
+  .data-table.stack td.cell-paid {
+    grid-area: paid;
+    margin-top: 0.3rem;
+  }
+
+  .data-table.stack td.cell-due {
+    grid-area: due;
+    margin-top: 0.3rem;
+  }
+
+  /* The number, status, customer and date speak for themselves, so they go without a name. */
+  .data-table.stack td.cell-status::before,
+  .data-table.stack td.customer-cell::before,
+  .data-table.stack td.cell-date::before,
+  .data-table.stack td.cell-items::before {
+    content: none;
+  }
+
+  .data-table.stack td.cell-date,
+  .data-table.stack td.cell-items {
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
+  .customer-cell .name,
+  .customer-cell .details {
+    display: inline;
+  }
+
+  .customer-cell .details::before {
+    content: ' · ';
+  }
+
+  .items-word {
+    display: inline;
+  }
+
+  /* The whole card opens the bill; the "i" beside Due still opens its explanation. */
+  .data-table.stack td.cell-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .data-table.stack td.cell-due :deep(.info) {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choices,
+  .choices.open {
+    transition: none;
+  }
+
+  .sheet-backdrop {
+    animation: none;
+  }
 }
 </style>

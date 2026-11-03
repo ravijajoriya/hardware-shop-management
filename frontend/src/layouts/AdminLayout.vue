@@ -1,7 +1,9 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useMediaQuery } from '@/composables/useMediaQuery'
+import { useScrollLock } from '@/composables/useScrollLock'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -20,28 +22,17 @@ watch(
 )
 
 // On a phone the menu is a panel that slides in from the left, over the page.
-const phoneQuery = window.matchMedia?.('(max-width: 640px)') ?? null
-const isPhone = ref(phoneQuery?.matches ?? false)
+const isPhone = useMediaQuery('(max-width: 640px)')
 const drawerOpen = computed(() => menuOpen.value && isPhone.value)
 
 const menuButton = ref(null)
 const drawerClose = ref(null)
 
-function onScreenChange(event) {
-  isPhone.value = event.matches
-}
-
-onMounted(() => phoneQuery?.addEventListener('change', onScreenChange))
-
-onBeforeUnmount(() => {
-  phoneQuery?.removeEventListener('change', onScreenChange)
-  document.documentElement.classList.remove('menu-locked')
-})
-
 // While the panel is open the page behind it stays still, and focus moves into the panel
 // and back to the menu button when it closes.
+useScrollLock(drawerOpen)
+
 watch(drawerOpen, async (open, wasOpen) => {
-  document.documentElement.classList.toggle('menu-locked', open)
   await nextTick()
 
   if (open) {
@@ -399,11 +390,6 @@ async function logout() {
     z-index: 40;
     background: rgba(0, 0, 0, 0.5);
     animation: fade-in 0.25s ease;
-  }
-
-  /* The page behind the open panel does not scroll. */
-  :global(html.menu-locked) {
-    overflow: hidden;
   }
 }
 

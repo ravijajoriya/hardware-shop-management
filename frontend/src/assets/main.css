@@ -409,6 +409,11 @@ textarea.input {
   box-shadow: inset 0 0 0 1px hsla(160, 100%, 37%, 1);
 }
 
+/* While a panel covers the page on a phone (the menu, the bill filters), the page stays still. */
+html.scroll-locked {
+  overflow: hidden;
+}
+
 /* base.css resets every margin, which would pin a modal dialog to the corner. */
 .dialog {
   width: min(480px, calc(100vw - 2rem));

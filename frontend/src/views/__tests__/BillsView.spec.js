@@ -171,4 +171,67 @@ describe('BillsView', () => {
     expect(wrapper.get('input[aria-label="Bills with this product"]').element.value).toBe('')
     expect(wrapper.findAll('button').some((b) => b.text() === 'Clear filters')).toBe(false)
   })
+
+  it('shows the filters in use as tags, each removed on its own', async () => {
+    const { wrapper, router } = await open({
+      search: 'ramesh',
+      ...periodRange('this_month'),
+      status: 'unpaid',
+      method: 'upi',
+      overdue: '30',
+      changes: 'returned',
+      product: 'nails',
+      sort: 'due',
+    })
+
+    const tags = () => wrapper.findAll('.chips .chip').map((chip) => chip.text().replace(' ✕', ''))
+    expect(tags()).toEqual([
+      'This month',
+      'Unpaid',
+      'Paid by UPI',
+      'Due over 30 days',
+      'Items returned',
+      'Product: nails',
+    ])
+    // The search shows in its own box, so it is not counted.
+    expect(wrapper.get('.filter-count').text()).toBe('6')
+
+    await wrapper.get('.chip[aria-label="Remove filter: This month"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).not.toHaveProperty('from')
+    expect(router.currentRoute.value.query).not.toHaveProperty('to')
+    expect(router.currentRoute.value.query.status).toBe('unpaid')
+
+    await wrapper.get('.chip[aria-label="Remove filter: Paid by UPI"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).not.toHaveProperty('method')
+    expect(tags()).toEqual(['Unpaid', 'Due over 30 days', 'Items returned', 'Product: nails'])
+  })
+
+  it('names days chosen by hand in their tag', async () => {
+    const { wrapper } = await open({ from: '2026-10-03', to: '2026-10-09' })
+
+    expect(wrapper.get('.chips .chip').text()).toBe('3 Oct 2026 – 9 Oct 2026 ✕')
+  })
+
+  it('clears what the panel sets but keeps the search and the order', async () => {
+    const { wrapper, router } = await open({
+      search: 'ramesh',
+      status: 'unpaid',
+      overdue: '60',
+      product: 'nails',
+      sort: 'oldest',
+    })
+
+    expect(wrapper.get('.sheet-foot .btn-primary').text()).toBe('Show 1 bill')
+
+    await wrapper
+      .findAll('.sheet-foot button')
+      .find((b) => b.text() === 'Clear all')
+      .trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ search: 'ramesh', sort: 'oldest' })
+    expect(wrapper.find('.chips').exists()).toBe(false)
+  })
 })
