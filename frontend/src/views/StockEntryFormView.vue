@@ -340,7 +340,7 @@ onMounted(() => {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
   gap: 0 1rem;
 }
 
@@ -545,5 +545,12 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* On a small phone every bit of width counts. */
+@media (max-width: 480px) {
+  .form-section {
+    padding: 1rem;
+  }
 }
 </style>

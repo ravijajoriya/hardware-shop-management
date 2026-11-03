@@ -225,4 +225,11 @@ h2 {
   font-size: 0.85rem;
   opacity: 0.8;
 }
+
+/* On a small phone every bit of width counts. */
+@media (max-width: 480px) {
+  .where {
+    padding: 1rem;
+  }
+}
 </style>

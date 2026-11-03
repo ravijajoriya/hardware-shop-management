@@ -54,7 +54,7 @@ function remove(index) {
   </p>
 
   <div class="table-wrap">
-    <table class="data-table variants">
+    <table class="data-table variants stack">
       <thead>
         <tr>
           <th scope="col">Variant</th>
@@ -70,6 +70,7 @@ function remove(index) {
       <tbody>
         <tr v-for="(row, index) in rows" :key="row.key">
           <td class="col-name">
+            <span class="cell-label">Variant</span>
             <input
               v-model="row.name"
               class="input"
@@ -81,6 +82,7 @@ function remove(index) {
             <p v-if="errorFor(index, 'name')" class="field-error">{{ errorFor(index, 'name') }}</p>
           </td>
           <td class="col-sku">
+            <span class="cell-label">SKU <InfoTip term="SKU" /></span>
             <input
               v-model="row.sku"
               class="input"
@@ -92,6 +94,7 @@ function remove(index) {
             <p v-if="errorFor(index, 'sku')" class="field-error">{{ errorFor(index, 'sku') }}</p>
           </td>
           <td class="col-price">
+            <span class="cell-label"> Purchase price (₹) <InfoTip term="Purchase price" /> </span>
             <input
               v-model="row.purchase_price"
               class="input"
@@ -106,6 +109,7 @@ function remove(index) {
             </p>
           </td>
           <td class="col-price">
+            <span class="cell-label">Selling price (₹)</span>
             <input
               v-model="row.selling_price"
               class="input"
@@ -120,6 +124,7 @@ function remove(index) {
             </p>
           </td>
           <td class="col-price">
+            <span class="cell-label">MRP (₹) <InfoTip term="MRP" /></span>
             <input
               v-model="row.mrp"
               class="input"
@@ -132,6 +137,7 @@ function remove(index) {
             <p v-if="errorFor(index, 'mrp')" class="field-error">{{ errorFor(index, 'mrp') }}</p>
           </td>
           <td class="col-stock">
+            <span class="cell-label">Stock{{ unit ? ` (${unit.short_name})` : '' }}</span>
             <span v-if="row.id" class="stock-fixed">{{ formatQuantity(row.stock_quantity) }}</span>
             <input
               v-else
@@ -148,10 +154,11 @@ function remove(index) {
             </p>
           </td>
           <td class="num worth">
+            <span class="cell-label">Stock worth</span>
             <div>{{ formatMoney(rowWorth(row).cost) }}</div>
             <div class="sells-for">sells for {{ formatMoney(rowWorth(row).selling) }}</div>
           </td>
-          <td>
+          <td class="actions">
             <button
               type="button"
               class="btn remove"
@@ -275,5 +282,37 @@ function remove(index) {
 .hint {
   font-size: 0.85rem;
   opacity: 0.8;
+}
+
+/* A little narrower on smaller laptops and landscape tablets, so every column fits. */
+@media (max-width: 1100px) {
+  .col-sku {
+    min-width: 6rem;
+  }
+
+  .col-price {
+    min-width: 5.75rem;
+  }
+}
+
+/* On tablets and phones each variant is a card (see .stack), so the cells lose their spacing. */
+@media (max-width: 820px) {
+  .variants td,
+  .variants td:first-child,
+  .variants td:last-child,
+  .variants td.worth {
+    padding: 0;
+  }
+
+  .col-name,
+  .col-sku,
+  .col-price,
+  .col-stock {
+    min-width: 0;
+  }
+
+  .variants .field-error {
+    max-width: none;
+  }
 }
 </style>

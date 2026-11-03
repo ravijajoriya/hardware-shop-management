@@ -70,7 +70,7 @@ onMounted(load)
   <p v-else-if="store.tree.length === 0">No categories yet. Create the first one to get started.</p>
 
   <div v-else class="table-wrap">
-    <table class="data-table">
+    <table class="data-table stack">
       <thead>
         <tr>
           <th scope="col">Name</th>
@@ -81,14 +81,17 @@ onMounted(load)
       </thead>
       <tbody>
         <tr v-for="category in store.tree" :key="category.id">
-          <td>
+          <td class="cell-title">
             <span class="name" :style="{ paddingLeft: `${category.depth * 1.5}rem` }">
               <span v-if="category.depth > 0" class="branch" aria-hidden="true">└</span>
               {{ category.name }}
             </span>
           </td>
-          <td class="mono">{{ category.slug }}</td>
-          <td>
+          <td class="mono">
+            <span class="cell-label">Slug <InfoTip term="Slug" /></span>
+            {{ category.slug }}
+          </td>
+          <td data-label="Status">
             <span class="badge" :class="{ 'badge-active': category.is_active }">
               {{ category.is_active ? 'Active' : 'Inactive' }}
             </span>

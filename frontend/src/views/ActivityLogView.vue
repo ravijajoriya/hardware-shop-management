@@ -339,6 +339,22 @@ onMounted(() => {
   opacity: 0.8;
 }
 
+/* On a phone: the search on its own line, then the two lists side by side, then the two dates. */
+@media (max-width: 640px) {
+  .filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .filters > .search {
+    grid-column: 1 / -1;
+  }
+
+  .date .input {
+    min-width: 0;
+  }
+}
+
 .busy {
   opacity: 0.6;
 }

@@ -68,7 +68,7 @@ onMounted(load)
   <p v-else-if="store.sorted.length === 0">No brands yet. Create the first one to get started.</p>
 
   <div v-else class="table-wrap">
-    <table class="data-table">
+    <table class="data-table stack">
       <thead>
         <tr>
           <th scope="col">Name</th>
@@ -79,9 +79,12 @@ onMounted(load)
       </thead>
       <tbody>
         <tr v-for="brand in store.sorted" :key="brand.id">
-          <td class="name">{{ brand.name }}</td>
-          <td class="mono">{{ brand.slug }}</td>
-          <td>
+          <td class="name cell-title">{{ brand.name }}</td>
+          <td class="mono">
+            <span class="cell-label">Slug <InfoTip term="Slug" /></span>
+            {{ brand.slug }}
+          </td>
+          <td data-label="Status">
             <span class="badge" :class="{ 'badge-active': brand.is_active }">
               {{ brand.is_active ? 'Active' : 'Inactive' }}
             </span>
