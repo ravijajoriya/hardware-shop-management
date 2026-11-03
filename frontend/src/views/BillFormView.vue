@@ -4,7 +4,6 @@ import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useBillStore } from '@/stores/bills'
 import { useCustomerStore } from '@/stores/customers'
-import { useProductStore } from '@/stores/products'
 import { formatMoney, formatQuantity } from '@/utils/format'
 import {
   PAYMENT_METHODS,
@@ -24,11 +23,11 @@ import {
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
+import ProductPicker from '@/components/ProductPicker.vue'
 
 const auth = useAuthStore()
 const bills = useBillStore()
 const customers = useCustomerStore()
-const products = useProductStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -146,57 +145,7 @@ function fillDetails(found) {
 // --- Items ---
 
 const lines = ref([])
-const searchInput = ref(null)
-const term = ref('')
-const results = ref([])
-const searched = ref('')
-const searching = ref(false)
-const searchError = ref('')
-
-let searchTimer
-let latestSearch = 0
-
-watch(term, (value) => {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => search(value.trim()), 250)
-})
-
-async function search(value) {
-  const request = ++latestSearch
-  searchError.value = ''
-
-  if (!value) {
-    results.value = []
-    searched.value = ''
-    searching.value = false
-    return
-  }
-
-  searching.value = true
-
-  try {
-    const found = await products.find(value)
-
-    // An older, slower search must not replace the results of a newer one.
-    if (request === latestSearch) {
-      results.value = found
-      searched.value = value
-    }
-  } catch (e) {
-    if (request === latestSearch) {
-      searchError.value = e.message
-    }
-  } finally {
-    if (request === latestSearch) {
-      searching.value = false
-    }
-  }
-}
-
-// Every size in the results, so Enter can add one when it is the only one.
-const choices = computed(() =>
-  results.value.flatMap((product) => product.variants.map((variant) => ({ product, variant }))),
-)
+const picker = ref(null)
 
 function lineFor(variantId) {
   return lines.value.find((line) => line.variant_id === variantId)
@@ -214,20 +163,8 @@ async function pick(product, variant) {
     lines.value.push(line)
   }
 
-  term.value = ''
-  results.value = []
-  searched.value = ''
-
   await nextTick()
   document.getElementById(`line-${line.key}-quantity`)?.select()
-}
-
-function pickOnlyChoice() {
-  if (choices.value.length === 1) {
-    const [{ product, variant }] = choices.value
-
-    pick(product, variant)
-  }
 }
 
 function removeLine(index) {
@@ -237,7 +174,7 @@ function removeLine(index) {
 }
 
 function focusSearch() {
-  searchInput.value?.focus()
+  picker.value?.focus()
 }
 
 function stockNote(line) {
@@ -377,7 +314,7 @@ onBeforeRouteLeave(() => {
   }
 })
 
-onMounted(() => (customer.mobile ? searchInput : mobileInput).value?.focus())
+onMounted(() => (customer.mobile ? focusSearch() : mobileInput.value?.focus()))
 </script>
 
 <template>
@@ -473,50 +410,14 @@ onMounted(() => (customer.mobile ? searchInput : mobileInput).value?.focus())
     <section class="form-section">
       <h2>Items</h2>
 
-      <div class="finder">
-        <input
-          ref="searchInput"
-          v-model="term"
-          class="input"
-          type="search"
-          autocomplete="off"
-          placeholder="Search by product name or item code to add it"
-          aria-label="Find a product to add to the bill"
-          @keydown.enter.prevent="pickOnlyChoice"
-        />
-
-        <p v-if="searchError" class="field-error">{{ searchError }}</p>
-        <p v-else-if="searching && results.length === 0" class="hint">Searching…</p>
-        <p v-else-if="searched && results.length === 0" class="hint">
-          Nothing found for “{{ searched }}”.
-        </p>
-
-        <ul v-if="results.length" class="results" :class="{ busy: searching }">
-          <li v-for="product in results" :key="product.id" class="result">
-            <span class="result-name">
-              {{ product.name }}
-              <span v-if="!product.is_active" class="badge">Inactive</span>
-            </span>
-            <div class="picks">
-              <button
-                v-for="variant in product.variants"
-                :key="variant.id"
-                type="button"
-                class="pick"
-                :aria-label="`Add ${itemName({ product_name: product.name, variant_name: variant.name })} at ${formatMoney(variant.selling_price)}`"
-                @click="pick(product, variant)"
-              >
-                <span v-if="variant.name" class="pick-size">{{ variant.name }}</span>
-                <strong>{{ formatMoney(variant.selling_price) }}</strong>
-                <span class="pick-stock" :class="{ out: variant.stock_quantity <= 0 }">
-                  {{ formatQuantity(variant.stock_quantity, product.unit) }} in stock
-                </span>
-                <span v-if="lineFor(variant.id)" class="pick-added">On the bill: adds 1 more</span>
-              </button>
-            </div>
-          </li>
-        </ul>
-      </div>
+      <ProductPicker
+        ref="picker"
+        placeholder="Search by product name or item code to add it"
+        label="Find a product to add to the bill"
+        :picked-ids="lines.map((line) => line.variant_id)"
+        picked-note="On the bill: adds 1 more"
+        @pick="pick"
+      />
 
       <div v-if="lines.length" class="lines">
         <div class="line line-head" aria-hidden="true">
@@ -795,101 +696,6 @@ onMounted(() => (customer.mobile ? searchInput : mobileInput).value?.focus())
   font-size: 0.8rem;
   font-weight: normal;
   opacity: 0.7;
-}
-
-.finder {
-  margin-bottom: 1rem;
-}
-
-.finder .hint,
-.finder .field-error {
-  margin-top: 0.5rem;
-}
-
-.results {
-  max-height: 24rem;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-  background: var(--color-background);
-  border: 1px solid var(--color-border-hover);
-  border-radius: 6px;
-}
-
-.results.busy {
-  opacity: 0.6;
-}
-
-.result {
-  padding: 0.6rem 0.75rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.result:first-child {
-  border-top: 0;
-}
-
-.result-name {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.picks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.4rem;
-}
-
-.pick {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 0.4rem 0.75rem;
-  font: inherit;
-  line-height: 1.4;
-  text-align: left;
-  color: var(--color-text);
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border-hover);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.pick:hover,
-.pick:focus-visible {
-  border-color: hsla(160, 100%, 37%, 1);
-  box-shadow: inset 0 0 0 1px hsla(160, 100%, 37%, 1);
-}
-
-.pick strong {
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.pick-size,
-.pick-stock,
-.pick-added {
-  font-size: 0.8rem;
-}
-
-.pick-size,
-.pick-stock {
-  opacity: 0.85;
-}
-
-.pick-stock.out {
-  color: var(--color-danger);
-  opacity: 1;
-}
-
-.pick-added {
-  color: var(--color-success);
 }
 
 .lines {

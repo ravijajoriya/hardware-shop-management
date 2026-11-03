@@ -91,6 +91,13 @@ class ProductService
      */
     public function update(Product $product, array $data): Product
     {
+        // An existing variant's stock changes only through Stock in and stock corrections,
+        // which are logged; the form sets stock only for a new variant, as its opening stock.
+        $data['variants'] = array_map(
+            fn (array $variant) => isset($variant['id']) ? Arr::except($variant, 'stock_quantity') : $variant,
+            $data['variants'],
+        );
+
         $this->ensureWholeQuantities($data);
 
         $data['slug'] = $this->resolveSlug($data, $product);
@@ -152,6 +159,10 @@ class ProductService
         $errors = [];
 
         foreach ($data['variants'] as $index => $variant) {
+            if (! isset($variant['stock_quantity'])) {
+                continue;
+            }
+
             $quantity = (float) $variant['stock_quantity'];
 
             if (floor($quantity) !== $quantity) {

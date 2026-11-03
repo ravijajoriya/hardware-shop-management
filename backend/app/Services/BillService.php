@@ -208,7 +208,7 @@ class BillService
      */
     private function lines(array $items): array
     {
-        $variants = $this->variants->findForBilling(array_map(fn (array $item) => (int) $item['product_variant_id'], $items));
+        $variants = $this->variants->findWithUnits(array_map(fn (array $item) => (int) $item['product_variant_id'], $items));
         $lines = [];
         $errors = [];
 

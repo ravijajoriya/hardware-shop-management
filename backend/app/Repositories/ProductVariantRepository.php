@@ -8,12 +8,12 @@ use Illuminate\Database\Eloquent\Collection;
 class ProductVariantRepository
 {
     /**
-     * The sizes being billed, keyed by id, with the product and unit each belongs to.
+     * The sizes being billed or stocked, keyed by id, with the product and unit each belongs to.
      *
      * @param  list<int>  $ids
      * @return Collection<int, ProductVariant>
      */
-    public function findForBilling(array $ids): Collection
+    public function findWithUnits(array $ids): Collection
     {
         return ProductVariant::with(['product:id,name,unit_id', 'product.unit:id,name,short_name,allow_decimal'])
             ->whereKey($ids)
@@ -22,10 +22,29 @@ class ProductVariantRepository
     }
 
     /**
+     * The size read afresh and locked until the transaction ends, so two changes to its
+     * stock at once cannot overwrite each other.
+     */
+    public function lockForStock(ProductVariant $variant): ProductVariant
+    {
+        return ProductVariant::whereKey($variant->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    /**
      * Stock is allowed to go below zero, since it is counted by hand and may already be off.
      */
     public function reduceStock(ProductVariant $variant, float $quantity): void
     {
         ProductVariant::whereKey($variant->id)->decrement('stock_quantity', $quantity);
+    }
+
+    public function updateStock(ProductVariant $variant, float $stock, ?float $purchasePrice): void
+    {
+        $variant->update(['stock_quantity' => $stock, 'purchase_price' => $purchasePrice]);
+    }
+
+    public function setStock(ProductVariant $variant, float $stock): void
+    {
+        $variant->update(['stock_quantity' => $stock]);
     }
 }

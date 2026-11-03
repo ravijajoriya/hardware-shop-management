@@ -64,7 +64,9 @@ class StoreProductRequest extends FormRequest
             'variants.*.purchase_price' => ['required', ...$price],
             'variants.*.selling_price' => ['required', ...$price],
             'variants.*.mrp' => ['nullable', ...$price, 'gte:variants.*.selling_price'],
-            'variants.*.stock_quantity' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_STOCK, 'decimal:0,3'],
+            // Opening stock, for new variants only; after that it changes through Stock in and
+            // stock corrections, so an existing variant's stock is not needed (and is not saved).
+            'variants.*.stock_quantity' => ['required_without:variants.*.id', 'nullable', 'numeric', 'min:0', 'max:'.self::MAX_STOCK, 'decimal:0,3'],
         ];
     }
 
@@ -118,6 +120,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.name.distinct' => 'Each variant needs a different name.',
             'variants.*.sku.distinct' => 'Each variant needs a different SKU.',
             'variants.*.mrp.gte' => 'The MRP cannot be lower than the selling price.',
+            'variants.*.stock_quantity.required_without' => 'Enter the opening stock for this variant.',
         ];
     }
 

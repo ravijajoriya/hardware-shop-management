@@ -106,6 +106,18 @@ describe('productPayload', () => {
     expect(existing.id).toBe(7)
     expect(added).not.toHaveProperty('id')
   })
+
+  it('sends stock only as the opening stock of a new variant', () => {
+    const rows = [
+      variantRow({ id: 7, name: '1 L', stock_quantity: 10 }),
+      { ...variantRow({ name: '4 L' }), stock_quantity: '3' },
+    ]
+
+    const [existing, added] = productPayload(form, rows).variants
+
+    expect(existing).not.toHaveProperty('stock_quantity')
+    expect(added.stock_quantity).toBe(3)
+  })
 })
 
 describe('image changes', () => {

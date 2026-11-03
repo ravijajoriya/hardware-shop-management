@@ -55,11 +55,13 @@ export function productPayload(form, rows) {
         purchase_price: numberOrNull(row.purchase_price),
         selling_price: numberOrNull(row.selling_price),
         mrp: numberOrNull(row.mrp),
-        stock_quantity: numberOrNull(row.stock_quantity),
       }
 
-      // Existing variants are matched by id; rows without one become new variants.
-      return row.id ? { id: row.id, ...variant } : variant
+      // Existing variants are matched by id, and their stock is left alone (it changes through
+      // Stock in and corrections). Rows without an id become new variants with opening stock.
+      return row.id
+        ? { id: row.id, ...variant }
+        : { ...variant, stock_quantity: numberOrNull(row.stock_quantity) }
     }),
   }
 }
