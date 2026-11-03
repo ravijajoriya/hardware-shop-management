@@ -187,4 +187,21 @@ a.stat-note {
   font-size: 0.85rem;
   opacity: 0.75;
 }
+
+/* On a phone the cards sit two to a line: Net sales and Profit, Money received and Due, then
+   Low on stock. */
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .stat {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 1.15rem;
+  }
+}
 </style>
