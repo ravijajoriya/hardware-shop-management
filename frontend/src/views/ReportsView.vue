@@ -76,7 +76,7 @@ watch(
 
 <template>
   <div class="page-header">
-    <h1 class="page-title">Sales report</h1>
+    <h1 class="page-title">Sales Report</h1>
   </div>
 
   <div class="period">
@@ -188,18 +188,20 @@ watch(
             </thead>
             <tbody>
               <tr v-for="row in report.days" :key="row.date">
-                <td class="cell-title">{{ day(row.date) }}</td>
-                <td class="num" data-label="Bills">{{ row.bills }}</td>
-                <td class="num" data-label="Sold">{{ formatMoney(row.sales) }}</td>
-                <td class="num" data-label="Returned">
+                <td class="cell-title d-day">{{ day(row.date) }}</td>
+                <td class="num d-bills" data-label="Bills">{{ row.bills }}</td>
+                <td class="num d-sold" data-label="Sold">{{ formatMoney(row.sales) }}</td>
+                <td class="num d-returned" data-label="Returned">
                   {{ row.returns > 0 ? `−${formatMoney(row.returns)}` : '—' }}
                 </td>
-                <td class="num strong" data-label="Net sales">{{ formatMoney(row.net_sales) }}</td>
-                <td class="num" :class="{ loss: row.profit < 0 }" data-label="Profit">
+                <td class="num strong d-net" data-label="Net sales">
+                  {{ formatMoney(row.net_sales) }}
+                </td>
+                <td class="num d-profit" :class="{ loss: row.profit < 0 }" data-label="Profit">
                   {{ formatMoney(row.profit) }}
                 </td>
-                <td class="num" data-label="Money in">{{ formatMoney(row.received) }}</td>
-                <td class="num" data-label="Given back">
+                <td class="num d-in" data-label="Money in">{{ formatMoney(row.received) }}</td>
+                <td class="num d-back" data-label="Given back">
                   {{ row.refunded > 0 ? formatMoney(row.refunded) : '—' }}
                 </td>
               </tr>
@@ -227,7 +229,7 @@ watch(
                   v-for="product in report.products"
                   :key="`${product.name}|${product.variant_name}`"
                 >
-                  <td class="name-cell cell-title">
+                  <td class="name-cell cell-title p-name">
                     <RouterLink
                       v-if="product.product_id"
                       :to="{ name: 'product-show', params: { id: product.product_id } }"
@@ -239,12 +241,18 @@ watch(
                       {{ product.variant_name }}
                     </div>
                   </td>
-                  <td class="num" data-label="Qty">
+                  <td class="num p-qty" data-label="Qty">
                     {{ formatQuantity(product.quantity, { short_name: product.unit }) }}
                   </td>
-                  <td class="num" data-label="Net sales">{{ formatMoney(product.amount) }}</td>
-                  <td class="num" :class="{ loss: product.profit < 0 }" data-label="Profit">
-                    {{ formatMoney(product.profit) }}
+                  <td class="num p-net" data-label="Net sales">
+                    {{ formatMoney(product.amount) }}
+                  </td>
+                  <td
+                    class="num p-profit"
+                    :class="{ loss: product.profit < 0 }"
+                    data-label="Profit"
+                  >
+                    <span class="phone-only">Profit </span>{{ formatMoney(product.profit) }}
                   </td>
                 </tr>
               </tbody>
@@ -267,14 +275,21 @@ watch(
               </thead>
               <tbody>
                 <tr v-for="customer in report.customers" :key="customer.id">
-                  <td class="name-cell cell-title">
+                  <td class="name-cell cell-title c-name">
                     <RouterLink :to="{ name: 'customer-show', params: { id: customer.id } }">
                       {{ customer.name }}
                     </RouterLink>
                   </td>
-                  <td class="num" data-label="Bills">{{ customer.bills }}</td>
-                  <td class="num" data-label="Bought">{{ formatMoney(customer.amount) }}</td>
-                  <td class="num" :class="{ loss: customer.due > 0 }">
+                  <td class="num c-bills" data-label="Bills">
+                    {{ customer.bills
+                    }}<span class="phone-only">{{
+                      customer.bills === 1 ? ' Bill' : ' Bills'
+                    }}</span>
+                  </td>
+                  <td class="num c-bought" data-label="Bought">
+                    {{ formatMoney(customer.amount) }}
+                  </td>
+                  <td class="num c-due" :class="{ loss: customer.due > 0 }">
                     <span class="cell-label">Due now <InfoTip term="Due" /></span>
                     {{ formatMoney(customer.due) }}
                   </td>
@@ -398,6 +413,218 @@ watch(
 @media (max-width: 1000px) {
   .data-table td.name-cell {
     min-width: 0;
+  }
+}
+
+/* Only on a phone, where a card names a figure in its line instead of above it. */
+.phone-only {
+  display: none;
+}
+
+/*
+ * On a phone: the ready-made periods as a 3 × 2 grid with the two dates side by side, Net sales
+ * and Profit side by side with Money received under them, and a slim card for each day, product
+ * and customer. A product or customer card opens it when tapped.
+ */
+@media (max-width: 640px) {
+  .period {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .presets .btn {
+    justify-content: center;
+    padding-inline: 0.3rem;
+    white-space: nowrap;
+  }
+
+  .custom {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .custom .input {
+    width: 100%;
+  }
+
+  .estimate-note {
+    font-size: 0.8rem;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .stat {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* Money received has two lines of notes, so it gets the whole width. */
+  .stats .stat:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .block {
+    margin-top: 1.25rem;
+  }
+
+  .data-table.stack tr {
+    position: relative;
+    gap: 0.3rem 0.75rem;
+    padding: 0.8rem 1rem;
+  }
+
+  /* A day: the date and net sales, then Bills, Sold and Returned, then Profit, Money in and
+     Given back. */
+  .data-table.stack tr:has(td.d-net) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      'day day net'
+      'bills sold returned'
+      'profit in back';
+  }
+
+  .data-table.stack td.d-day {
+    grid-area: day;
+    align-self: end;
+  }
+
+  .data-table.stack td.d-net {
+    grid-area: net;
+    text-align: right;
+  }
+
+  .data-table.stack td.d-bills {
+    grid-area: bills;
+  }
+
+  .data-table.stack td.d-sold {
+    grid-area: sold;
+  }
+
+  .data-table.stack td.d-returned {
+    grid-area: returned;
+  }
+
+  .data-table.stack td.d-profit {
+    grid-area: profit;
+  }
+
+  .data-table.stack td.d-in {
+    grid-area: in;
+  }
+
+  .data-table.stack td.d-back {
+    grid-area: back;
+  }
+
+  .data-table.stack :is(td.d-bills, td.d-sold, td.d-returned, td.d-profit, td.d-in, td.d-back) {
+    font-size: 0.9rem;
+  }
+
+  /* A product: its name and net sales, then how many sold and the profit. */
+  .data-table.stack tr:has(td.p-net) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name net'
+      'qty profit';
+  }
+
+  .data-table.stack td.p-name {
+    grid-area: name;
+  }
+
+  .data-table.stack td.p-net {
+    grid-area: net;
+    text-align: right;
+  }
+
+  .data-table.stack td.p-qty {
+    grid-area: qty;
+  }
+
+  .data-table.stack td.p-profit {
+    grid-area: profit;
+    text-align: right;
+  }
+
+  /* A customer: the name and what they bought, then how many bills and what they owe now. */
+  .data-table.stack tr:has(td.c-due) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name bought'
+      'bills due';
+  }
+
+  .data-table.stack td.c-name {
+    grid-area: name;
+  }
+
+  .data-table.stack td.c-bought {
+    grid-area: bought;
+    text-align: right;
+  }
+
+  .data-table.stack td.c-bills {
+    grid-area: bills;
+  }
+
+  .data-table.stack td.c-due {
+    grid-area: due;
+    text-align: right;
+  }
+
+  .data-table.stack td.c-due .cell-label {
+    display: inline-flex;
+    margin-right: 0.3rem;
+  }
+
+  /* Amounts on the right have their name above, also on the right. */
+  .data-table.stack :is(td.d-net, td.p-net, td.c-bought)::before {
+    justify-content: flex-end;
+  }
+
+  /* These say what they are in their own line, so they go without a name above. */
+  .data-table.stack :is(td.p-qty, td.p-profit, td.c-bills)::before {
+    content: none;
+  }
+
+  .data-table.stack :is(td.p-qty, td.p-profit, td.c-bills, td.c-due) {
+    font-size: 0.85rem;
+  }
+
+  .data-table.stack :is(td.p-qty, td.c-bills) {
+    opacity: 0.8;
+  }
+
+  .phone-only {
+    display: inline;
+  }
+
+  /* The whole product or customer card opens it (above the faded lines, whose opacity gives
+     them a layer of their own); the faded "Due now" label is lifted to keep its "i" on top. */
+  .data-table.stack :is(td.p-name, td.c-name) a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .data-table.stack td.c-due .cell-label {
+    position: relative;
+    z-index: 2;
   }
 }
 </style>
