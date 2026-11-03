@@ -282,6 +282,10 @@ async function confirmDelete() {
               <div>{{ formatMoney(product.stock_value.cost) }}</div>
               <div class="sells-for">sells for {{ formatMoney(product.stock_value.selling) }}</div>
             </td>
+            <!-- On a phone the selling worth is its own value in the card (see the styles). -->
+            <td class="num sells-cell" data-label="Sells for">
+              {{ formatMoney(product.stock_value.selling) }}
+            </td>
             <td data-label="Status">
               <span class="badge" :class="{ 'badge-active': product.is_active }">
                 {{ product.is_active ? 'Active' : 'Inactive' }}
@@ -420,6 +424,10 @@ async function confirmDelete() {
   opacity: 0.75;
 }
 
+.data-table td.sells-cell {
+  display: none;
+}
+
 .details {
   font-size: 0.85rem;
   opacity: 0.8;
@@ -454,6 +462,40 @@ async function confirmDelete() {
 @media (max-width: 1000px) {
   .data-table td.product-cell {
     min-width: 0;
+  }
+}
+
+/* On a phone the cards sit two to a line: Products and Stock worth at cost, then Stock worth
+   at selling price and Low on stock. */
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .stat {
+    padding: 0.8rem 0.85rem;
+  }
+
+  /* Large stock worths, such as ₹1,23,45,678, wrap instead of running out of the card. */
+  .stat-value {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* Each product card shows its details three to a line: Category, Location and Stock, then
+     Stock worth, Sells for and Status. */
+  .data-table.stack tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 0.75rem;
+  }
+
+  .data-table.stack .sells-for {
+    display: none;
+  }
+
+  .data-table.stack td.sells-cell {
+    display: block;
   }
 }
 </style>
