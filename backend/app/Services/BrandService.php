@@ -20,11 +20,13 @@ class BrandService
     ) {}
 
     /**
+     * Every brand, each with how many products it has.
+     *
      * @return Collection<int, Brand>
      */
     public function list(): Collection
     {
-        return $this->brands->all();
+        return $this->brands->allWithProductCounts();
     }
 
     /**

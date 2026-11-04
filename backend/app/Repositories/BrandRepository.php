@@ -15,6 +15,16 @@ class BrandRepository
         return Brand::orderBy('name')->get();
     }
 
+    /**
+     * Every brand with how many products it has.
+     *
+     * @return Collection<int, Brand>
+     */
+    public function allWithProductCounts(): Collection
+    {
+        return Brand::withCount('products')->orderBy('name')->get();
+    }
+
     public function slugExists(string $slug, ?int $ignoreId = null): bool
     {
         return Brand::where('slug', $slug)

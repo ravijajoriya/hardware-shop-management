@@ -18,13 +18,17 @@ export const useBrandStore = defineStore('brands', () => {
   async function create(payload) {
     const { data } = await auth.request('/admin/brands', { method: 'POST', body: payload })
 
-    brands.value.push(data)
+    // A new brand has no products yet; the list's counts come only with the full list.
+    brands.value.push({ products_count: 0, ...data })
   }
 
   async function update(id, payload) {
     const { data } = await auth.request(`/admin/brands/${id}`, { method: 'PUT', body: payload })
 
-    brands.value = brands.value.map((brand) => (brand.id === id ? data : brand))
+    // Editing does not change which products it has, so the product count carries over.
+    brands.value = brands.value.map((brand) =>
+      brand.id === id ? { products_count: brand.products_count, ...data } : brand,
+    )
   }
 
   async function remove(id) {

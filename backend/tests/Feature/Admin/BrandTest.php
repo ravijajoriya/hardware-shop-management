@@ -40,18 +40,21 @@ class BrandTest extends TestCase
     public function test_admin_can_list_brands_ordered_by_name(): void
     {
         $this->actingAsAdmin();
-        Brand::factory()->create(['name' => 'Stanley']);
+        $stanley = Brand::factory()->create(['name' => 'Stanley']);
         Brand::factory()->create(['name' => 'Asian Paints']);
         Brand::factory()->create(['name' => 'Bosch']);
+        Product::factory()->count(2)->create(['brand_id' => $stanley->id]);
 
         $this->getJson('/api/admin/brands')
             ->assertOk()
             ->assertJsonCount(3, 'data')
             ->assertJsonPath('data.0.name', 'Asian Paints')
+            ->assertJsonPath('data.0.products_count', 0)
             ->assertJsonPath('data.1.name', 'Bosch')
             ->assertJsonPath('data.2.name', 'Stanley')
+            ->assertJsonPath('data.2.products_count', 2)
             ->assertJsonStructure(['data' => [[
-                'id', 'name', 'slug', 'description', 'is_active', 'created_at', 'updated_at',
+                'id', 'name', 'slug', 'description', 'is_active', 'products_count', 'created_at', 'updated_at',
             ]]]);
     }
 

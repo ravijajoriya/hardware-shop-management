@@ -64,7 +64,8 @@ describe('brand store', () => {
     expect(url).toMatch(/\/admin\/brands$/)
     expect(options.method).toBe('POST')
     expect(JSON.parse(options.body)).toEqual({ name: 'Havells', slug: null })
-    expect(store.brands).toEqual([brand(7, 'Havells')])
+    // A new brand has no products yet.
+    expect(store.brands).toEqual([{ ...brand(7, 'Havells'), products_count: 0 }])
   })
 
   it('exposes field errors when the server rejects the input', async () => {
@@ -84,10 +85,16 @@ describe('brand store', () => {
     expect(store.brands).toEqual([])
   })
 
-  it('updates a brand in place', async () => {
+  it('updates a brand in place, keeping its product count', async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse(200, { data: [brand(1, 'Bosch'), brand(2, 'Stanley')] }),
+      jsonResponse(200, {
+        data: [
+          { ...brand(1, 'Bosch'), products_count: 1 },
+          { ...brand(2, 'Stanley'), products_count: 6 },
+        ],
+      }),
     )
+    // The saved brand comes back without a count.
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: brand(2, 'Stanley Tools') }))
     const store = useBrandStore()
     await store.fetchAll()
@@ -97,7 +104,10 @@ describe('brand store', () => {
     const [url, options] = fetchMock.mock.calls[1]
     expect(url).toMatch(/\/admin\/brands\/2$/)
     expect(options.method).toBe('PUT')
-    expect(store.brands).toEqual([brand(1, 'Bosch'), brand(2, 'Stanley Tools')])
+    expect(store.brands).toEqual([
+      { ...brand(1, 'Bosch'), products_count: 1 },
+      { ...brand(2, 'Stanley Tools'), products_count: 6 },
+    ])
   })
 
   it('removes a deleted brand', async () => {
