@@ -11,9 +11,9 @@ use Illuminate\Validation\Rules\Unique;
 
 class StoreProductRequest extends FormRequest
 {
-    private const MAX_PRICE = 9999999999.99;
+    public const MAX_PRICE = 9999999999.99;
 
-    private const MAX_STOCK = 999999999.999;
+    public const MAX_STOCK = 999999999.999;
 
     /**
      * Determine if the user is authorized to make this request.

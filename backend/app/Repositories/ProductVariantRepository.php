@@ -25,6 +25,28 @@ class ProductVariantRepository
      * The size read afresh and locked until the transaction ends, so two changes to its
      * stock at once cannot overwrite each other.
      */
+    /**
+     * The products that already use these item codes, ignoring case: item code => product name.
+     *
+     * @param  list<string>  $skus
+     * @return array<string, string>
+     */
+    public function productNamesBySku(array $skus): array
+    {
+        $found = [];
+
+        foreach (array_chunk(array_unique($skus), 500) as $chunk) {
+            ProductVariant::with('product:id,name')
+                ->whereIn('sku', $chunk)
+                ->get(['id', 'product_id', 'sku'])
+                ->each(function (ProductVariant $variant) use (&$found) {
+                    $found[$variant->sku] = $variant->product->name;
+                });
+        }
+
+        return $found;
+    }
+
     public function lockForStock(ProductVariant $variant): ProductVariant
     {
         return ProductVariant::whereKey($variant->getKey())->lockForUpdate()->firstOrFail();

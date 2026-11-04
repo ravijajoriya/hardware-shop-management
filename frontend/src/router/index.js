@@ -13,6 +13,7 @@ import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
 import ProductDetailView from '../views/ProductDetailView.vue'
 import ProductFormView from '../views/ProductFormView.vue'
+import ProductImportView from '../views/ProductImportView.vue'
 import ProductsView from '../views/ProductsView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import StockEntriesView from '../views/StockEntriesView.vue'
@@ -94,6 +95,12 @@ const router = createRouter({
           path: 'products',
           name: 'products',
           component: ProductsView,
+          meta: { section: 'products' },
+        },
+        {
+          path: 'products/import',
+          name: 'product-import',
+          component: ProductImportView,
           meta: { section: 'products' },
         },
         {

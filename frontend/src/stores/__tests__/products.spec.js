@@ -154,4 +154,35 @@ describe('product store', () => {
 
     expect(useAuthStore().isAuthenticated).toBe(false)
   })
+
+  it('downloads the import template as a file', async () => {
+    fetchMock.mockResolvedValue(new Response(new Blob(['xlsx']), { status: 200 }))
+    const store = useProductStore()
+
+    const file = await store.fetchImportTemplate()
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/admin\/products\/import\/template$/)
+    expect(file.name).toBe('products-template.xlsx')
+  })
+
+  it('checks a file to import, then imports it', async () => {
+    const report = { ready: { products: 2, sizes: 3 }, problems: [] }
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: report }))
+    fetchMock.mockResolvedValueOnce(jsonResponse(201, { data: { products: 2 } }))
+    const store = useProductStore()
+    const file = new File(['rows'], 'products.xlsx')
+
+    expect(await store.checkImport(file)).toEqual(report)
+    expect(await store.importProducts(file, true)).toEqual({ products: 2 })
+
+    const [checkUrl, checkOptions] = fetchMock.mock.calls[0]
+    expect(checkUrl).toMatch(/\/admin\/products\/import\/check$/)
+    expect(checkOptions.method).toBe('POST')
+    expect(checkOptions.body.get('file').name).toBe('products.xlsx')
+
+    const [importUrl, importOptions] = fetchMock.mock.calls[1]
+    expect(importUrl).toMatch(/\/admin\/products\/import$/)
+    expect(importOptions.body.get('skip_problems')).toBe('1')
+    expect(importOptions.headers).not.toHaveProperty('Content-Type')
+  })
 })
