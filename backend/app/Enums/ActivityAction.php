@@ -31,6 +31,7 @@ enum ActivityAction: string
     case ProductImagesAdded = 'product.images_added';
     case ProductImageRemoved = 'product.image_removed';
     case ProductImagesReordered = 'product.images_reordered';
+    case ProductsImported = 'product.imported';
 
     case CategoryCreated = 'category.created';
     case CategoryUpdated = 'category.updated';
@@ -49,7 +50,8 @@ enum ActivityAction: string
             self::CustomerCreated, self::CustomerUpdated => ActivitySection::Customers,
             self::StockEntryCreated, self::StockEntryDeleted, self::StockCorrected => ActivitySection::Stock,
             self::ProductCreated, self::ProductUpdated, self::ProductDeleted,
-            self::ProductImagesAdded, self::ProductImageRemoved, self::ProductImagesReordered => ActivitySection::Products,
+            self::ProductImagesAdded, self::ProductImageRemoved, self::ProductImagesReordered,
+            self::ProductsImported => ActivitySection::Products,
             self::CategoryCreated, self::CategoryUpdated, self::CategoryDeleted => ActivitySection::Categories,
             self::BrandCreated, self::BrandUpdated, self::BrandDeleted => ActivitySection::Brands,
         };
@@ -78,6 +80,7 @@ enum ActivityAction: string
             self::ProductImagesAdded => 'Photos added',
             self::ProductImageRemoved => 'Photo removed',
             self::ProductImagesReordered => 'Photo order changed',
+            self::ProductsImported => 'Products imported',
             self::CategoryCreated => 'Category added',
             self::CategoryUpdated => 'Category changed',
             self::CategoryDeleted => 'Category deleted',

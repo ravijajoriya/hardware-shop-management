@@ -149,7 +149,10 @@ async function confirmDelete() {
 <template>
   <div class="page-header">
     <h1 class="page-title">Products</h1>
-    <RouterLink class="btn btn-primary" :to="{ name: 'product-create' }">New product</RouterLink>
+    <div class="header-actions">
+      <RouterLink class="btn" :to="{ name: 'product-import' }">Import from Excel</RouterLink>
+      <RouterLink class="btn btn-primary" :to="{ name: 'product-create' }">New product</RouterLink>
+    </div>
   </div>
 
   <section class="stats" aria-label="Stock Value">
@@ -364,6 +367,13 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;

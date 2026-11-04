@@ -100,6 +100,36 @@ export const useProductStore = defineStore('products', () => {
     return data
   }
 
+  // Importing from Excel: the template to fill in, a check that saves nothing, and the import.
+
+  async function fetchImportTemplate() {
+    const blob = await auth.request('/admin/products/import/template', { responseType: 'blob' })
+
+    return new File([blob], 'products-template.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+  }
+
+  async function checkImport(file) {
+    const body = new FormData()
+    body.append('file', file)
+
+    const { data } = await auth.request('/admin/products/import/check', { method: 'POST', body })
+
+    return data
+  }
+
+  // With skipProblems, the products that are ready are added and those with problems left out.
+  async function importProducts(file, skipProblems = false) {
+    const body = new FormData()
+    body.append('file', file)
+    body.append('skip_problems', skipProblems ? '1' : '0')
+
+    const { data } = await auth.request('/admin/products/import', { method: 'POST', body })
+
+    return data
+  }
+
   return {
     products,
     meta,
@@ -116,5 +146,8 @@ export const useProductStore = defineStore('products', () => {
     uploadImages,
     deleteImage,
     reorderImages,
+    fetchImportTemplate,
+    checkImport,
+    importProducts,
   }
 })

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductImageController;
+use App\Http\Controllers\Admin\ProductImportController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StockCorrectionController;
 use App\Http\Controllers\Admin\StockEntryController;
@@ -37,6 +38,9 @@ Route::prefix('admin')->group(function () {
 
         // Registered before the resource so "options" is not read as a product id.
         Route::get('/products/options', [ProductController::class, 'options']);
+        Route::get('/products/import/template', [ProductImportController::class, 'template']);
+        Route::post('/products/import/check', [ProductImportController::class, 'check']);
+        Route::post('/products/import', [ProductImportController::class, 'store']);
         Route::apiResource('products', ProductController::class);
         Route::get('/products/{product}/stock-history', [StockHistoryController::class, 'show']);
 

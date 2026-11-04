@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @phpstan-type Filters array{search?: string|null, category_ids?: list<int>|null, brand_id?: int|null, low_stock?: bool}
@@ -76,6 +77,25 @@ class ProductRepository
     public function loadDetails(Product $product): Product
     {
         return $product->load(self::DETAIL_RELATIONS);
+    }
+
+    /**
+     * Which of these names products already have, ignoring case: lowercase name => name.
+     *
+     * @param  list<string>  $names
+     * @return array<string, string>
+     */
+    public function namesTaken(array $names): array
+    {
+        $taken = [];
+
+        foreach (array_chunk(array_unique(array_map('mb_strtolower', $names)), 500) as $chunk) {
+            foreach (Product::whereIn(DB::raw('LOWER(name)'), $chunk)->pluck('name') as $name) {
+                $taken[mb_strtolower($name)] = $name;
+            }
+        }
+
+        return $taken;
     }
 
     public function slugExists(string $slug, ?int $ignoreId = null): bool
