@@ -4,10 +4,14 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/products'
 import { formatMoney, formatQuantity } from '@/utils/format'
 import { locationLabel } from '@/utils/location'
+import { useMediaQuery } from '@/composables/useMediaQuery'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import InfoTip from '@/components/InfoTip.vue'
 
 const store = useProductStore()
+
+// On a phone the two lists and the low stock box share one line, so their words are shorter.
+const isPhone = useMediaQuery('(max-width: 640px)')
 const route = useRoute()
 const router = useRouter()
 
@@ -148,21 +152,10 @@ async function confirmDelete() {
     <RouterLink class="btn btn-primary" :to="{ name: 'product-create' }">New product</RouterLink>
   </div>
 
-  <section class="stats" aria-label="Stock worth">
+  <section class="stats" aria-label="Stock Value">
     <div class="stat">
       <span class="stat-label">{{ isFiltered ? 'Matching products' : 'Total Products' }}</span>
       <span class="stat-value">{{ store.summary.products }}</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Stock worth at cost</span>
-      <span class="stat-value">{{ formatMoney(store.summary.cost_value) }}</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Stock worth at selling price</span>
-      <span class="stat-value">{{ formatMoney(store.summary.selling_value) }}</span>
-      <span class="stat-note">
-        {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} above cost
-      </span>
     </div>
     <div class="stat" :class="{ 'stat-low': store.summary.low_stock > 0 }">
       <span class="stat-label">Low on stock <InfoTip term="Minimum stock" /></span>
@@ -177,6 +170,17 @@ async function confirmDelete() {
       </button>
       <span v-else-if="store.summary.low_stock === 0" class="stat-note">
         Nothing is below its minimum stock
+      </span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Stock Value At Cost</span>
+      <span class="stat-value">{{ formatMoney(store.summary.cost_value) }}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Stock Value At Sale</span>
+      <span class="stat-value">{{ formatMoney(store.summary.selling_value) }}</span>
+      <span class="stat-note">
+        {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} Margin <InfoTip term="Margin" />
       </span>
     </div>
   </section>
@@ -195,7 +199,7 @@ async function confirmDelete() {
       aria-label="Filter by category"
       @change="filter({ category_id: $event.target.value })"
     >
-      <option value="">All categories</option>
+      <option value="">{{ isPhone ? 'All Category' : 'All Categories' }}</option>
       <option
         v-for="category in store.options.categories"
         :key="category.id"
@@ -210,7 +214,7 @@ async function confirmDelete() {
       aria-label="Filter by brand"
       @change="filter({ brand_id: $event.target.value })"
     >
-      <option value="">All brands</option>
+      <option value="">{{ isPhone ? 'All Brand' : 'All Brands' }}</option>
       <option v-for="brand in store.options.brands" :key="brand.id" :value="String(brand.id)">
         {{ brand.name }}
       </option>
@@ -221,9 +225,9 @@ async function confirmDelete() {
         :checked="filters.low_stock === '1'"
         @change="filter({ low_stock: $event.target.checked ? '1' : '' })"
       />
-      Only low stock
+      <span class="low-label">{{ isPhone ? 'Low Stock' : 'Only low stock' }}</span>
     </label>
-    <button v-if="isFiltered" type="button" class="btn" @click="clearFilters">Clear</button>
+    <button v-if="isFiltered" type="button" class="btn clear" @click="clearFilters">Clear</button>
   </div>
 
   <p v-if="!loaded">Loading products…</p>
@@ -250,7 +254,7 @@ async function confirmDelete() {
             <th scope="col">Category</th>
             <th scope="col">Location <InfoTip term="Location code" /></th>
             <th scope="col" class="num">Stock</th>
-            <th scope="col" class="num">Stock worth</th>
+            <th scope="col" class="num">Stock Value</th>
             <th scope="col">Status</th>
             <th scope="col" class="actions">Actions</th>
           </tr>
@@ -269,43 +273,53 @@ async function confirmDelete() {
                 </div>
               </div>
             </td>
-            <td data-label="Category">{{ product.category.name }}</td>
-            <td class="mono" :title="locationLabel(product.location)">
+            <td class="p-cat" data-label="Category">{{ product.category.name }}</td>
+            <td class="mono p-loc" :title="locationLabel(product.location)">
               <span class="cell-label">Location <InfoTip term="Location code" /></span>
               {{ product.location.code }}
             </td>
-            <td class="num" data-label="Stock">
+            <td class="num p-stock" data-label="Stock">
               {{ formatQuantity(product.stock_quantity, product.unit) }}
               <div v-if="product.low_stock" class="low">Low stock</div>
             </td>
-            <td class="num" data-label="Stock worth">
+            <td class="num p-worth" data-label="Stock Value">
               <div>{{ formatMoney(product.stock_value.cost) }}</div>
               <div class="sells-for">sells for {{ formatMoney(product.stock_value.selling) }}</div>
             </td>
             <!-- On a phone the selling worth is its own value in the card (see the styles). -->
-            <td class="num sells-cell" data-label="Sells for">
+            <td class="num sells-cell p-sells" data-label="Sells for">
               {{ formatMoney(product.stock_value.selling) }}
             </td>
-            <td data-label="Status">
+            <td class="p-status" data-label="Status">
               <span class="badge" :class="{ 'badge-active': product.is_active }">
                 {{ product.is_active ? 'Active' : 'Inactive' }}
               </span>
             </td>
             <td class="actions">
               <RouterLink
-                class="btn"
+                class="btn action"
                 :to="{ name: 'product-edit', params: { id: product.id } }"
                 :aria-label="`Edit ${product.name}`"
+                title="Edit"
               >
-                Edit
+                <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
+                  <path d="M13.5 8.5l2 2" />
+                </svg>
+                <span class="action-text">Edit</span>
               </RouterLink>
               <button
                 type="button"
-                class="btn"
+                class="btn action action-delete"
                 :aria-label="`Delete ${product.name}`"
+                title="Delete"
                 @click="askDelete(product)"
               >
-                Delete
+                <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M10 11v6M14 11v6M9 7V4h6v3" />
+                  <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                </svg>
+                <span class="action-text">Delete</span>
               </button>
             </td>
           </tr>
@@ -428,6 +442,11 @@ async function confirmDelete() {
   display: none;
 }
 
+/* Edit and Delete are words on a wide screen and icons on a phone. */
+.action-icon {
+  display: none;
+}
+
 .details {
   font-size: 0.85rem;
   opacity: 0.8;
@@ -468,6 +487,47 @@ async function confirmDelete() {
 /* On a phone the cards sit two to a line: Products and Stock worth at cost, then Stock worth
    at selling price and Low on stock. */
 @media (max-width: 640px) {
+  /* The search on its own line (with Clear beside it when filters are on), then Category,
+     Brand and the low stock box together on the next. */
+  .filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .filters .search {
+    grid-column: 1 / -1;
+  }
+
+  .filters:has(> .clear) .search {
+    grid-column: 1 / 3;
+  }
+
+  /* Clear shares a column with the narrow low stock box, so it stays as narrow. */
+  .filters > .clear {
+    grid-row: 1;
+    grid-column: 3;
+    padding-inline: 0.5rem;
+  }
+
+  .filters select.input {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.6rem;
+  }
+
+  .filters .checkbox {
+    gap: 0.35rem;
+  }
+
+  /* "Low" above "Stock", so the box takes little room and the two lists get the rest. */
+  .filters .low-label {
+    display: inline-block;
+    width: min-content;
+    font-size: 0.8rem;
+    line-height: 1.15;
+  }
+
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.6rem;
@@ -483,11 +543,43 @@ async function confirmDelete() {
     overflow-wrap: anywhere;
   }
 
-  /* Each product card shows its details three to a line: Category, Location and Stock, then
-     Stock worth, Sells for and Status. */
+  /* Each product card shows its details three to a line: Category, Location and Stock with the
+     Edit icon at its end, then Stock worth, Sells for and Status with the Delete icon. */
   .data-table.stack tr {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'title title title title'
+      'cat loc stock edit'
+      'worth sells status delete';
+    column-gap: 0.6rem;
+  }
+
+  .data-table.stack td.product-cell {
+    grid-area: title;
+  }
+
+  .data-table.stack td.p-cat {
+    grid-area: cat;
+  }
+
+  .data-table.stack td.p-loc {
+    grid-area: loc;
+  }
+
+  .data-table.stack td.p-stock {
+    grid-area: stock;
+  }
+
+  .data-table.stack td.p-worth {
+    grid-area: worth;
+  }
+
+  .data-table.stack td.p-sells {
+    grid-area: sells;
+  }
+
+  .data-table.stack td.p-status {
+    grid-area: status;
   }
 
   .data-table.stack .sells-for {
@@ -496,6 +588,82 @@ async function confirmDelete() {
 
   .data-table.stack td.sells-cell {
     display: block;
+  }
+
+  /* Edit and Delete as icons, each at the end of a line of details: the cell steps aside so
+     the two icons take their own places in the card's grid. */
+  .data-table.stack td.actions {
+    display: contents;
+  }
+
+  .data-table .actions .action {
+    grid-area: edit;
+    align-self: center;
+    justify-content: center;
+    align-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0;
+    padding: 0;
+  }
+
+  .data-table .actions .action-delete {
+    grid-area: delete;
+  }
+
+  .action-icon {
+    display: block;
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .action-delete {
+    color: var(--color-danger);
+  }
+
+  .action-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* On the smallest phones the filter line and the card's four columns need tighter spacing and
+   slightly smaller words, with a little more room for "Location" and its "i". */
+@media (max-width: 350px) {
+  .filters {
+    gap: 0.4rem;
+  }
+
+  .filters select.input {
+    padding-inline: 0.4rem;
+  }
+
+  .filters .checkbox {
+    gap: 0.3rem;
+  }
+
+  .data-table.stack tr {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) auto auto;
+    column-gap: 0.4rem;
+    padding-inline: 0.75rem;
+  }
+
+  .data-table.stack :is(td.p-cat, td.p-loc, td.p-stock, td.p-worth, td.p-sells, td.p-status) {
+    font-size: 0.85rem;
+  }
+
+  .data-table.stack td[data-label]::before,
+  .data-table.stack .cell-label {
+    font-size: 0.72rem;
   }
 }
 </style>
