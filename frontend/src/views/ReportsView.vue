@@ -262,6 +262,9 @@ watch(
 
         <section class="block" aria-labelledby="customers-title">
           <h2 id="customers-title">Top customers</h2>
+          <p v-if="report.customers.length" class="ranked-by phone-only">
+            Ranked by what they bought in this period.
+          </p>
           <p v-if="report.customers.length === 0" class="empty">No customers in this period.</p>
           <div v-else class="table-wrap">
             <table class="data-table stack">
@@ -274,7 +277,8 @@ watch(
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="customer in report.customers" :key="customer.id">
+                <tr v-for="(customer, index) in report.customers" :key="customer.id">
+                  <td class="c-rank" aria-hidden="true">{{ index + 1 }}</td>
                   <td class="name-cell cell-title c-name">
                     <RouterLink :to="{ name: 'customer-show', params: { id: customer.id } }">
                       {{ customer.name }}
@@ -417,7 +421,8 @@ watch(
 }
 
 /* Only on a phone, where a card names a figure in its line instead of above it. */
-.phone-only {
+.phone-only,
+.data-table td.c-rank {
   display: none;
 }
 
@@ -560,12 +565,36 @@ watch(
     text-align: right;
   }
 
-  /* A customer: the name and what they bought, then how many bills and what they owe now. */
+  /* A customer: their place in the ranking, the name and what they bought, then how many bills
+     and what they owe now. The amounts line up on the right. */
+  .ranked-by.phone-only {
+    display: block;
+    margin: -0.5rem 0 0.6rem;
+    font-size: 0.8rem;
+    opacity: 0.75;
+  }
+
   .data-table.stack tr:has(td.c-due) {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
-      'name bought'
-      'bills due';
+      'rank name bought'
+      'rank bills due';
+    gap: 0.15rem 0.75rem;
+    padding: 0.65rem 0.9rem;
+  }
+
+  .data-table.stack td.c-rank {
+    display: grid;
+    grid-area: rank;
+    place-items: center;
+    align-self: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-heading);
+    background: var(--color-background-mute);
+    border-radius: 50%;
   }
 
   .data-table.stack td.c-name {
@@ -574,6 +603,8 @@ watch(
 
   .data-table.stack td.c-bought {
     grid-area: bought;
+    font-weight: 600;
+    color: var(--color-heading);
     text-align: right;
   }
 
@@ -596,8 +627,9 @@ watch(
     justify-content: flex-end;
   }
 
-  /* These say what they are in their own line, so they go without a name above. */
-  .data-table.stack :is(td.p-qty, td.p-profit, td.c-bills)::before {
+  /* These say what they are in their own line, so they go without a name above. What a
+     customer bought is named by the note under Top customers. */
+  .data-table.stack :is(td.p-qty, td.p-profit, td.c-bills, td.c-bought)::before {
     content: none;
   }
 
