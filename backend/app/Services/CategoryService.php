@@ -20,11 +20,13 @@ class CategoryService
     ) {}
 
     /**
+     * Every category, each with how many products are filed directly under it.
+     *
      * @return Collection<int, Category>
      */
     public function list(): Collection
     {
-        return $this->categories->all();
+        return $this->categories->allWithProductCounts();
     }
 
     /**

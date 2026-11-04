@@ -41,18 +41,23 @@ class CategoryTest extends TestCase
     {
         $this->actingAsAdmin();
         $tools = Category::factory()->create(['name' => 'Tools']);
-        Category::factory()->create(['name' => 'Hammers', 'parent_id' => $tools->id]);
+        $hammers = Category::factory()->create(['name' => 'Hammers', 'parent_id' => $tools->id]);
         Category::factory()->create(['name' => 'Adhesives']);
+        Product::factory()->count(2)->create(['category_id' => $hammers->id]);
 
         $this->getJson('/api/admin/categories')
             ->assertOk()
             ->assertJsonCount(3, 'data')
             ->assertJsonPath('data.0.name', 'Adhesives')
+            ->assertJsonPath('data.0.products_count', 0)
             ->assertJsonPath('data.1.name', 'Hammers')
             ->assertJsonPath('data.1.parent_id', $tools->id)
+            // Only products filed directly under a category; Tools' count leaves out Hammers'.
+            ->assertJsonPath('data.1.products_count', 2)
             ->assertJsonPath('data.2.name', 'Tools')
+            ->assertJsonPath('data.2.products_count', 0)
             ->assertJsonStructure(['data' => [[
-                'id', 'parent_id', 'name', 'slug', 'description', 'is_active', 'created_at', 'updated_at',
+                'id', 'parent_id', 'name', 'slug', 'description', 'is_active', 'products_count', 'created_at', 'updated_at',
             ]]]);
     }
 

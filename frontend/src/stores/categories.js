@@ -63,13 +63,17 @@ export const useCategoryStore = defineStore('categories', () => {
   async function create(payload) {
     const { data } = await auth.request('/admin/categories', { method: 'POST', body: payload })
 
-    categories.value.push(data)
+    // A new category has no products yet; the list's counts come only with the full list.
+    categories.value.push({ products_count: 0, ...data })
   }
 
   async function update(id, payload) {
     const { data } = await auth.request(`/admin/categories/${id}`, { method: 'PUT', body: payload })
 
-    categories.value = categories.value.map((category) => (category.id === id ? data : category))
+    // Editing does not change what is filed under it, so the product count carries over.
+    categories.value = categories.value.map((category) =>
+      category.id === id ? { products_count: category.products_count, ...data } : category,
+    )
   }
 
   async function remove(id) {

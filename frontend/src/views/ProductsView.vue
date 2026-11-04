@@ -180,7 +180,8 @@ async function confirmDelete() {
       <span class="stat-label">Stock Value At Sale</span>
       <span class="stat-value">{{ formatMoney(store.summary.selling_value) }}</span>
       <span class="stat-note">
-        {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} Margin <InfoTip term="Margin" />
+        {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} Margin
+        <InfoTip term="Margin" />
       </span>
     </div>
   </section>

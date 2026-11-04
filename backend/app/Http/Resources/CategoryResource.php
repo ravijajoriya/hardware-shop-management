@@ -25,6 +25,8 @@ class CategoryResource extends JsonResource
             'slug' => $this->slug,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            // Products filed directly under this category, when counted (subcategories not included).
+            'products_count' => $this->whenCounted('products'),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

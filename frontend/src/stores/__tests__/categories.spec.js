@@ -102,7 +102,8 @@ describe('category store', () => {
     expect(url).toMatch(/\/admin\/categories$/)
     expect(options.method).toBe('POST')
     expect(JSON.parse(options.body)).toEqual({ name: 'Paint', parent_id: null })
-    expect(store.categories).toEqual([category(7, 'Paint')])
+    // A new category has no products yet.
+    expect(store.categories).toEqual([{ ...category(7, 'Paint'), products_count: 0 }])
   })
 
   it('exposes field errors when the server rejects the input', async () => {
@@ -122,10 +123,16 @@ describe('category store', () => {
     expect(store.categories).toEqual([])
   })
 
-  it('updates a category in place', async () => {
+  it('updates a category in place, keeping its product count', async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse(200, { data: [category(1, 'Tools'), category(2, 'Paint')] }),
+      jsonResponse(200, {
+        data: [
+          { ...category(1, 'Tools'), products_count: 3 },
+          { ...category(2, 'Paint'), products_count: 4 },
+        ],
+      }),
     )
+    // The saved category comes back without a count.
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { data: category(2, 'Paints') }))
     const store = useCategoryStore()
     await store.fetchAll()
@@ -135,7 +142,10 @@ describe('category store', () => {
     const [url, options] = fetchMock.mock.calls[1]
     expect(url).toMatch(/\/admin\/categories\/2$/)
     expect(options.method).toBe('PUT')
-    expect(store.categories).toEqual([category(1, 'Tools'), category(2, 'Paints')])
+    expect(store.categories).toEqual([
+      { ...category(1, 'Tools'), products_count: 3 },
+      { ...category(2, 'Paints'), products_count: 4 },
+    ])
   })
 
   it('removes a deleted category', async () => {

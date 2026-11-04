@@ -15,6 +15,16 @@ class CategoryRepository
         return Category::orderBy('name')->get();
     }
 
+    /**
+     * Every category with how many products are filed directly under it.
+     *
+     * @return Collection<int, Category>
+     */
+    public function allWithProductCounts(): Collection
+    {
+        return Category::withCount('products')->orderBy('name')->get();
+    }
+
     public function find(int $id): ?Category
     {
         return Category::find($id);
