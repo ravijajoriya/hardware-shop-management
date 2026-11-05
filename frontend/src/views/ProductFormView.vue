@@ -91,6 +91,7 @@ watch(
 // The images as last saved, and the list being edited (saved ones plus newly chosen files).
 const savedImages = ref([])
 const imageItems = ref([])
+const preparingImages = ref(false)
 
 // Inactive choices are hidden unless this product already uses them.
 function selectable(items, selectedId) {
@@ -478,7 +479,11 @@ onMounted(load)
     <section class="form-section">
       <h2>Images <span class="optional">optional</span></h2>
 
-      <ProductImagesField v-model="imageItems" :error="errorFor('images')" />
+      <ProductImagesField
+        v-model="imageItems"
+        v-model:preparing="preparingImages"
+        :error="errorFor('images')"
+      />
     </section>
 
     <section class="form-section">
@@ -492,8 +497,8 @@ onMounted(load)
 
     <div class="form-actions">
       <RouterLink class="btn" :to="listRoute">Cancel</RouterLink>
-      <button type="submit" class="btn btn-primary" :disabled="saving">
-        {{ saving ? 'Saving…' : 'Save product' }}
+      <button type="submit" class="btn btn-primary" :disabled="saving || preparingImages">
+        {{ saving ? 'Saving…' : preparingImages ? 'Preparing photos…' : 'Save product' }}
       </button>
     </div>
   </form>

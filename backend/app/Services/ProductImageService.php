@@ -6,10 +6,12 @@ use App\Enums\ActivityAction;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Repositories\ProductImageRepository;
+use App\Support\ImageCompressor;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -44,7 +46,7 @@ class ProductImageService
             ]);
         }
 
-        $paths = array_map(fn (UploadedFile $file) => $file->store('products', ProductImage::DISK), $files);
+        $paths = array_map(fn (UploadedFile $file) => $this->store($file), $files);
 
         try {
             DB::transaction(function () use ($product, $paths) {
@@ -131,5 +133,22 @@ class ProductImageService
     public function deleteFiles(array $paths): void
     {
         Storage::disk(ProductImage::DISK)->delete($paths);
+    }
+
+    /**
+     * Save a photo, made smaller first unless it already is, and return its path.
+     */
+    private function store(UploadedFile $file): string
+    {
+        $smaller = ImageCompressor::compress($file->getRealPath());
+
+        if ($smaller === null) {
+            return $file->store('products', ProductImage::DISK);
+        }
+
+        $path = 'products/'.Str::random(40).'.webp';
+        Storage::disk(ProductImage::DISK)->put($path, $smaller);
+
+        return $path;
     }
 }

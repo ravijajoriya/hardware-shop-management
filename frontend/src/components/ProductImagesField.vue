@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { compressImage } from '@/utils/images'
 import { fileImageItem } from '@/utils/productForm'
 
 const MAX_IMAGES = 10
@@ -8,6 +9,9 @@ const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 // The images in display order: saved ones and newly chosen files. The first is the main image.
 const items = defineModel({ type: Array, required: true })
+
+// True while chosen photos are being made smaller, so the form waits before saving.
+const preparing = defineModel('preparing', { type: Boolean, default: false })
 
 defineProps({
   error: { type: String, default: '' },
@@ -34,23 +38,41 @@ onBeforeUnmount(() => {
   }
 })
 
-function choose(event) {
+async function choose(event) {
   const files = [...event.target.files]
 
   // Let the same files be picked again later.
   event.target.value = ''
 
-  const usable = files.filter((file) => TYPES.includes(file.type) && file.size <= MAX_BYTES)
-  const added = usable.slice(0, remaining.value)
+  const photos = files.filter((file) => TYPES.includes(file.type))
+  const picked = photos.slice(0, remaining.value)
+  const ready = []
+
+  notice.value = ''
+  preparing.value = true
+
+  try {
+    // One at a time: opening several big photos at once can run a phone out of memory.
+    for (const file of picked) {
+      ready.push(await compressImage(file))
+    }
+  } finally {
+    preparing.value = false
+  }
+
+  const fitting = ready.filter((file) => file.size <= MAX_BYTES)
 
   notice.value = [
-    usable.length < files.length ? 'Some files were skipped: use JPG, PNG or WebP up to 2 MB.' : '',
-    added.length < usable.length ? `A product can have up to ${MAX_IMAGES} images.` : '',
+    photos.length < files.length ? 'Some files were skipped: use JPG, PNG or WebP photos.' : '',
+    fitting.length < ready.length
+      ? 'Some photos were skipped: they are still over 2 MB after making them smaller.'
+      : '',
+    picked.length < photos.length ? `A product can have up to ${MAX_IMAGES} images.` : '',
   ]
     .filter(Boolean)
     .join(' ')
 
-  items.value = [...items.value, ...added.map(fileImageItem)]
+  items.value = [...items.value, ...fitting.map(fileImageItem)]
 }
 
 function makeMain(item) {
@@ -88,7 +110,8 @@ function remove(item) {
   </ul>
 
   <div class="add">
-    <label v-if="remaining > 0" class="btn">
+    <p v-if="preparing" class="preparing" role="status">Making the photos smaller…</p>
+    <label v-else-if="remaining > 0" class="btn">
       Add images
       <input
         type="file"
@@ -100,8 +123,8 @@ function remove(item) {
     </label>
 
     <p class="hint">
-      {{ items.length }} of {{ MAX_IMAGES }} images. JPG, PNG or WebP, up to 2 MB each. The first
-      one is the main image. Changes are saved with the product.
+      {{ items.length }} of {{ MAX_IMAGES }} images. Big photos are made smaller automatically. The
+      first one is the main image. Changes are saved with the product.
     </p>
   </div>
 
@@ -177,6 +200,10 @@ label.btn:focus-within {
 .hint {
   font-size: 0.85rem;
   opacity: 0.8;
+}
+
+.preparing {
+  font-weight: 600;
 }
 
 .field-error {
