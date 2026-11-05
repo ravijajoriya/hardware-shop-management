@@ -15,17 +15,15 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StockCorrectionController;
 use App\Http\Controllers\Admin\StockEntryController;
 use App\Http\Controllers\Admin\StockHistoryController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
+// Every route is rate limited: "api" counts all of an admin's requests, and the heavy ones
+// have a limit of their own too. The limiters are in AppServiceProvider, the numbers in
+// config/shop.php.
 Route::prefix('admin')->group(function () {
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::middleware(['auth:sanctum', 'admin', 'throttle:api'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
 
@@ -38,9 +36,11 @@ Route::prefix('admin')->group(function () {
 
         // Registered before the resource so "options" is not read as a product id.
         Route::get('/products/options', [ProductController::class, 'options']);
-        Route::get('/products/import/template', [ProductImportController::class, 'template']);
-        Route::post('/products/import/check', [ProductImportController::class, 'check']);
-        Route::post('/products/import', [ProductImportController::class, 'store']);
+        Route::middleware('throttle:imports')->group(function () {
+            Route::get('/products/import/template', [ProductImportController::class, 'template']);
+            Route::post('/products/import/check', [ProductImportController::class, 'check']);
+            Route::post('/products/import', [ProductImportController::class, 'store']);
+        });
         Route::apiResource('products', ProductController::class);
         Route::get('/products/{product}/stock-history', [StockHistoryController::class, 'show']);
 
@@ -49,13 +49,13 @@ Route::prefix('admin')->group(function () {
         Route::get('/stock-entries/suppliers', [StockEntryController::class, 'suppliers']);
         Route::apiResource('stock-entries', StockEntryController::class)->except('update');
         Route::post('/product-variants/{variant}/stock-corrections', [StockCorrectionController::class, 'store']);
-        Route::post('/products/{product}/images', [ProductImageController::class, 'store']);
+        Route::post('/products/{product}/images', [ProductImageController::class, 'store'])->middleware('throttle:uploads');
         Route::put('/products/{product}/images/order', [ProductImageController::class, 'reorder']);
         Route::delete('/products/{product}/images/{image}', [ProductImageController::class, 'destroy'])
             ->scopeBindings();
 
         Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
-        Route::get('/reports/sales', [ReportController::class, 'sales']);
+        Route::get('/reports/sales', [ReportController::class, 'sales'])->middleware('throttle:reports');
 
         // Bills are never deleted: a wrong one is edited in place or cancelled, and every change
         // is in the activity log. Dues are paid on one bill, or through the customer, which
@@ -63,7 +63,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/bills', [BillController::class, 'index']);
         Route::post('/bills', [BillController::class, 'store']);
         Route::get('/bills/{bill}', [BillController::class, 'show']);
-        Route::get('/bills/{bill}/pdf', [BillController::class, 'pdf']);
+        Route::get('/bills/{bill}/pdf', [BillController::class, 'pdf'])->middleware('throttle:pdfs');
         Route::put('/bills/{bill}', [BillController::class, 'update']);
         Route::post('/bills/{bill}/cancel', [BillController::class, 'cancel']);
         Route::post('/bills/{bill}/payments', [BillController::class, 'receivePayment']);

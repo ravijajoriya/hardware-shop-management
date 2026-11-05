@@ -11,5 +11,5 @@ Route::get('/', function () {
 // in it is long and random, and repeated tries from one place are slowed down.
 Route::get('/bill/{bill:share_token}', [SharedBillController::class, 'show'])
     ->where('bill', '[A-Za-z0-9]{40}')
-    ->middleware('throttle:30,1')
+    ->middleware('throttle:shared-bill')
     ->name('bills.shared');
