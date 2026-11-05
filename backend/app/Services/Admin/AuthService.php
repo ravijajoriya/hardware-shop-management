@@ -6,8 +6,11 @@ use App\Enums\ActivityAction;
 use App\Models\User;
 use App\Repositories\UserRepository;
 use App\Services\ActivityLogService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthService
 {
@@ -65,5 +68,30 @@ class AuthService
         $this->activity->record(ActivityAction::LoggedOut, 'Logged out', actor: $user);
 
         $user->currentAccessToken()->delete();
+    }
+
+    /**
+     * Set a new password and log the admin out on every other phone and computer, so anyone
+     * who knew the old password, or kept a login, is shut out. This device stays logged in.
+     *
+     * @return int How many other devices were logged out.
+     */
+    public function changePassword(User $user, string $password): int
+    {
+        $token = $user->currentAccessToken();
+        $keepId = $token instanceof PersonalAccessToken ? $token->getKey() : null;
+
+        return DB::transaction(function () use ($user, $password, $keepId) {
+            $this->users->updatePassword($user, $password);
+            $others = $this->users->deleteTokensExcept($user, $keepId);
+
+            $this->activity->record(
+                ActivityAction::PasswordChanged,
+                'Changed the password'.($others ? ' and logged out '.$others.' other '.Str::plural('device', $others) : ''),
+                actor: $user,
+            );
+
+            return $others;
+        });
     }
 }

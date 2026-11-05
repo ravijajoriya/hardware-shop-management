@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
         ]);
+
+        $middleware->append(SecurityHeaders::class);
+
+        // Outside local development, only answer requests made to APP_URL's own address, so
+        // links the app builds (such as a bill's WhatsApp link) can't be pointed elsewhere.
+        $middleware->trustHosts();
+
+        // Trusted proxies (a hosting platform's front server) are set from config, in
+        // AppServiceProvider.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

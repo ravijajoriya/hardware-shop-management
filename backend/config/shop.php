@@ -57,6 +57,39 @@ return [
 
         // The bill link sent to customers on WhatsApp, a minute from one IP address.
         'shared_bill' => 10,
+
+        // Tries at changing the password, a minute per admin.
+        'password' => 5,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted proxies
+    |--------------------------------------------------------------------------
+    |
+    | Set "*" when the app runs behind a hosting platform's own front server (Render, Railway,
+    | Cloudflare and the like), so it sees each visitor's real IP address. Leave it empty when
+    | visitors reach the server directly: then nobody can fake their address.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | First admin account
+    |--------------------------------------------------------------------------
+    |
+    | Used once by AdminUserSeeder. On a live server both must be set (the password at least
+    | 10 characters), so the app never goes online with the example login from the README.
+    | Remove them from .env once the account exists.
+    |
+    */
+
+    'admin' => [
+        'name' => env('ADMIN_NAME', 'Admin'),
+        'email' => env('ADMIN_EMAIL'),
+        'password' => env('ADMIN_PASSWORD'),
     ],
 
 ];

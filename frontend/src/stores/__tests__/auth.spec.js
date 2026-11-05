@@ -104,6 +104,26 @@ describe('auth store', () => {
     expect(localStorage.getItem('admin_token')).toBeNull()
   })
 
+  it('changes the password with the current one and tells how many devices were logged out', async () => {
+    localStorage.setItem('admin_token', 'abc123')
+    fetchMock.mockResolvedValue(jsonResponse(200, { data: { other_devices_logged_out: 2 } }))
+    const auth = useAuthStore()
+
+    const others = await auth.changePassword('old-password-1', 'new-password-22', 'new-password-22')
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/\/admin\/password$/)
+    expect(options.method).toBe('PUT')
+    expect(options.headers.Authorization).toBe('Bearer abc123')
+    expect(JSON.parse(options.body)).toEqual({
+      current_password: 'old-password-1',
+      password: 'new-password-22',
+      password_confirmation: 'new-password-22',
+    })
+    expect(others).toBe(2)
+    expect(auth.isAuthenticated).toBe(true)
+  })
+
   it('keeps the stored token when the server is unreachable', async () => {
     localStorage.setItem('admin_token', 'abc123')
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))

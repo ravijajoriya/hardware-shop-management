@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Repositories\CustomerRepository;
 use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
@@ -29,7 +30,23 @@ class AppServiceProvider extends ServiceProvider
         // {customer} in a route only matches users who are customers, never an admin.
         Route::bind('customer', fn (string $value) => $this->app->make(CustomerRepository::class)->findOrFail((int) $value));
 
+        $this->trustHostingProxies();
         $this->configureRateLimits();
+    }
+
+    /**
+     * On hosts that put their own server in front of the app (Render, Railway, Cloudflare and
+     * the like), every request comes from that server. Trusting it lets the app see each
+     * visitor's real IP address, which the login and bill link limits count by. Left unset,
+     * nobody can fake their address with a forwarded-for header.
+     */
+    private function trustHostingProxies(): void
+    {
+        $proxies = trim((string) config('shop.trusted_proxies'));
+
+        if ($proxies !== '') {
+            TrustProxies::at($proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
     }
 
     /**
@@ -51,7 +68,7 @@ class AppServiceProvider extends ServiceProvider
                 ->response($this->tooMany('login attempts')),
         ]);
 
-        foreach (['api', 'imports', 'uploads', 'pdfs', 'reports'] as $name) {
+        foreach (['api', 'imports', 'uploads', 'pdfs', 'reports', 'password'] as $name) {
             RateLimiter::for($name, fn (Request $request) => Limit::perMinute($this->limit($name))
                 ->by('user|'.($request->user()?->id ?? $request->ip()))
                 ->response($this->tooMany('requests')));

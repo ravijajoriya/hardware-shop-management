@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // A login lasts 30 days, so a lost phone or a copied token stops working on its own.
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 60 * 24 * 30),
 
     /*
     |--------------------------------------------------------------------------

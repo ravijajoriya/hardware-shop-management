@@ -10,6 +10,7 @@ enum ActivityAction: string
     case LoggedIn = 'auth.logged_in';
     case LoggedOut = 'auth.logged_out';
     case LoginFailed = 'auth.login_failed';
+    case PasswordChanged = 'auth.password_changed';
 
     case BillCreated = 'bill.created';
     case BillUpdated = 'bill.updated';
@@ -44,7 +45,7 @@ enum ActivityAction: string
     public function section(): ActivitySection
     {
         return match ($this) {
-            self::LoggedIn, self::LoggedOut, self::LoginFailed => ActivitySection::Logins,
+            self::LoggedIn, self::LoggedOut, self::LoginFailed, self::PasswordChanged => ActivitySection::Logins,
             self::BillCreated, self::BillUpdated, self::BillCancelled, self::BillReturned => ActivitySection::Bills,
             self::BillPaymentReceived, self::DuesPaymentReceived => ActivitySection::Payments,
             self::CustomerCreated, self::CustomerUpdated => ActivitySection::Customers,
@@ -63,6 +64,7 @@ enum ActivityAction: string
             self::LoggedIn => 'Logged in',
             self::LoggedOut => 'Logged out',
             self::LoginFailed => 'Failed login',
+            self::PasswordChanged => 'Password changed',
             self::BillCreated => 'Bill made',
             self::BillUpdated => 'Bill edited',
             self::BillCancelled => 'Bill cancelled',

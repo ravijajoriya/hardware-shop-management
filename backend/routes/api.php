@@ -26,6 +26,7 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'admin', 'throttle:api'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::put('/password', [AuthController::class, 'changePassword'])->middleware('throttle:password');
 
         // Read-only: entries are written by the actions themselves and never changed.
         Route::get('/activity-logs/options', [ActivityLogController::class, 'options']);

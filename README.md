@@ -86,6 +86,18 @@ The project has two parts:
 - Every login, bill, payment, stock change and product change is recorded with who did it and
   when. Entries can't be edited.
 
+**Security**
+
+- **Logins:** a login lasts 30 days. Tapping your name in the header opens **Your account**,
+  where you change the password. Changing it needs the current password and logs you out on
+  every other device.
+- **Rate limits:** every API route has one, with stricter limits for logging in and for heavy
+  work. See [Rate limits](#rate-limits).
+- **Browser protection:** security headers on every answer from the API, and a
+  Content-Security-Policy in the built app, so only the app's own scripts can run.
+- **Live servers:** the app only answers requests made to its own address, and never goes
+  online with the example admin login. See [Before going live](#before-going-live).
+
 **Easy to use**
 
 - Every short form or trade term (SKU, MRP, HSN, GST and so on) has an ⓘ that explains it in
@@ -228,25 +240,24 @@ Open <http://localhost:5173> and log in:
 | ------------------- | ---------- |
 | `admin@example.com` | `password` |
 
-**Change this password before using the app for a real shop.** There is no screen for it yet,
-so use Tinker:
-
-```sh
-cd backend
-php artisan tinker --execute="App\Models\User::where('email', 'admin@example.com')->first()->update(['email' => 'you@example.com', 'password' => 'a-strong-password'])"
-```
+This example login only works on your own computer. To change the password, tap your name in
+the header to open **Your account**. On a live server the seeder refuses the example login and
+needs your own (see [Before going live](#before-going-live)).
 
 ## Configuration
 
 ### Backend (`backend/.env`)
 
-| Setting                                                                            | What it does                                                                                          |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `APP_URL`                                                                          | The API's own address. It is used in product photo links and in the bill link sent on WhatsApp.       |
-| `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | The database connection.                                                                              |
-| `SHOP_NAME`                                                                        | Printed at the top of every bill and used in WhatsApp messages. Falls back to `APP_NAME`.             |
-| `SHOP_ADDRESS`, `SHOP_PHONE`                                                       | Printed on bills.                                                                                     |
-| `SHOP_TIMEZONE`                                                                    | Decides which day a bill or payment belongs to, and the year in bill numbers. Default `Asia/Kolkata`. |
+| Setting                                                                            | What it does                                                                                                                   |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `APP_URL`                                                                          | The API's own address. It is used in product photo links and in the bill link sent on WhatsApp.                                |
+| `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | The database connection.                                                                                                       |
+| `SHOP_NAME`                                                                        | Printed at the top of every bill and used in WhatsApp messages. Falls back to `APP_NAME`.                                      |
+| `SHOP_ADDRESS`, `SHOP_PHONE`                                                       | Printed on bills.                                                                                                              |
+| `SHOP_TIMEZONE`                                                                    | Decides which day a bill or payment belongs to, and the year in bill numbers. Default `Asia/Kolkata`.                          |
+| `SANCTUM_EXPIRATION`                                                               | How long a login lasts, in minutes. Default 43200 (30 days).                                                                   |
+| `TRUSTED_PROXIES`                                                                  | `*` when the app runs behind a hosting platform's front server, so it sees visitors' real IP addresses. Leave empty otherwise. |
+| `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`                                      | Only for creating the first admin on a live server. Remove them once the account exists.                                       |
 
 ### Frontend (`frontend/.env`)
 
@@ -308,7 +319,12 @@ How rows are handled:
 
 ## Deploying
 
-The frontend is a set of static files, and the backend is a normal Laravel app.
+**To put it on a free Oracle Cloud server,** follow [deploy/README.md](deploy/README.md). Its
+scripts set up the whole server: Nginx, PHP, MySQL, HTTPS, nightly backups and a one-command
+update (`sudo shop-deploy`). They work on any Ubuntu 24.04 or 26.04 server.
+
+To deploy somewhere else: the frontend is a set of static files, and the backend is a normal
+Laravel app (PHP 8.4 or newer, because of the locked package versions).
 
 **Backend**, on a server with PHP, a web server (such as Nginx) and MySQL:
 
@@ -329,24 +345,37 @@ VITE_API_URL=https://api.your-shop.com/api npm run build
 ```
 
 Serve `frontend/dist`, and send every unknown path to `index.html` so links such as
-`/products/import` work when opened directly.
+`/products/import` work when opened directly. The build includes a Content-Security-Policy that
+allows only `VITE_API_URL`'s address, so build with the real one.
 
-Before a real shop uses it:
+### Before going live
 
-- **Use HTTPS** for both the app and the API.
-- **Keep product photos on a lasting disk.** They are saved in `backend/storage/app/public`;
-  hosts that wipe their disk on restart will lose them.
-- **Back up the database every day.** It holds the shop's bills, payments and dues.
-- **Change the admin email and password** from the defaults.
+1. **Production settings:** in `backend/.env`, set `APP_ENV=production` and `APP_DEBUG=false`.
+   Debug mode shows error details, including settings, to anyone.
+2. **The exact address:** set `APP_URL` to the API's real address, with `https://`. The app
+   refuses requests made to any other address.
+3. **Your own admin login:** put `ADMIN_EMAIL` and `ADMIN_PASSWORD` (at least 10 characters) in
+   `.env`, then run `php artisan db:seed --class=AdminUserSeeder --force` and
+   `php artisan db:seed --class=UnitSeeder --force`. Remove both lines from `.env` afterwards.
+   The seeder refuses the example login on a live server.
+4. **Behind a proxy?** If the host puts its own front server before the app (Render, Railway,
+   Cloudflare and the like), set `TRUSTED_PROXIES=*`, so rate limits count each visitor's own IP
+   address.
+5. **HTTPS** for both the app and the API.
+6. **Lasting storage for photos.** They are saved in `backend/storage/app/public`, and hosts that
+   wipe their disk on restart will lose them.
+7. **A daily database backup.** It holds the shop's bills, payments and dues.
+8. **Optional:** run `php artisan schedule:run` every minute from cron. It clears expired logins
+   out of the database each day; they're refused either way.
 
 ## API overview
 
 All admin routes are under `/api/admin` and need an `Authorization: Bearer <token>` header with
-the token from login. Login allows 5 tries a minute.
+the token from login. Every route is rate limited (see [Rate limits](#rate-limits)).
 
 | Area           | Routes                                                                                                                                                          |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Login          | `POST /login`, `GET /me`, `POST /logout`                                                                                                                        |
+| Login          | `POST /login`, `GET /me`, `POST /logout`, `PUT /password`                                                                                                       |
 | Bills          | `GET, POST /bills`, `GET, PUT /bills/{bill}`, `GET /bills/{bill}/pdf`, `POST /bills/{bill}/cancel`, `POST /bills/{bill}/payments`, `POST /bills/{bill}/returns` |
 | Customers      | `GET /customers`, `GET /customers/lookup`, `GET /customers/{customer}`, `POST /customers/{customer}/payments`                                                   |
 | Products       | `GET, POST /products`, `GET, PUT, DELETE /products/{product}`, `GET /products/options`, `GET /products/{product}/stock-history`                                 |
@@ -360,4 +389,25 @@ the token from login. Login allows 5 tries a minute.
 | Activity log   | `GET /activity-logs`, `GET /activity-logs/options`                                                                                                              |
 
 One public route needs no login: `GET /bill/{token}` returns a bill's PDF from the private link
-sent on WhatsApp. The token is 40 random characters, and the route allows 30 requests a minute.
+sent on WhatsApp. The token is 40 random characters.
+
+### Rate limits
+
+Every route has a limit, so a mistake, a stolen login or someone guessing passwords can't
+overload a small server. Searches in the app wait for typing to pause, so normal use stays far
+below these. Past a limit the API answers `429 Too Many Requests` with a message such as
+"Too many requests. Please wait 1 minute and try again.", which the app shows as it is.
+
+| What                                   | Limit                                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Every admin request                    | 60 a minute per admin                                                                     |
+| Excel import (template, check, import) | 5 a minute per admin, on top of the above                                                 |
+| Product photo uploads                  | 10 a minute per admin, on top of the above                                                |
+| Bill PDFs                              | 10 a minute per admin, on top of the above                                                |
+| Sales report                           | 20 a minute per admin, on top of the above                                                |
+| Changing the password                  | 5 a minute per admin, on top of the above                                                 |
+| Login                                  | 5 a minute and 20 an hour from one IP address, and 30 an hour for one email from anywhere |
+| The WhatsApp bill link                 | 10 a minute from one IP address                                                           |
+
+The numbers are in `backend/config/shop.php` (`rate_limits`), and the limiters in
+`AppServiceProvider`.

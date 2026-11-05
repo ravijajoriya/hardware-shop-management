@@ -78,7 +78,14 @@ async function logout() {
           </svg>
           <span class="menu-text">{{ menuOpen ? 'Close' : 'Menu' }}</span>
         </button>
-        <span v-if="auth.user" class="bar-user">{{ auth.user.name }}</span>
+        <RouterLink
+          v-if="auth.user"
+          :to="{ name: 'account' }"
+          class="bar-user"
+          title="Your account and password"
+        >
+          {{ auth.user.name }}
+        </RouterLink>
       </div>
 
       <div id="main-menu" class="menu" :class="{ open: menuOpen }" @keydown.esc="menuOpen = false">
@@ -127,7 +134,14 @@ async function logout() {
         </nav>
 
         <div class="account">
-          <span v-if="auth.user" class="account-name">{{ auth.user.name }}</span>
+          <RouterLink
+            v-if="auth.user"
+            :to="{ name: 'account' }"
+            class="account-name"
+            title="Your account and password"
+          >
+            {{ auth.user.name }}
+          </RouterLink>
           <button type="button" class="btn" :disabled="loggingOut" @click="logout">
             {{ loggingOut ? 'Logging out…' : 'Log out' }}
           </button>
@@ -197,6 +211,18 @@ async function logout() {
   align-items: center;
   gap: 1rem;
   margin-left: auto;
+}
+
+/* The admin's name opens their account page, where the password is changed. */
+.account-name,
+.bar-user {
+  color: var(--color-heading);
+  border-radius: 6px;
+}
+
+.account-name.router-link-exact-active,
+.bar-user.router-link-exact-active {
+  font-weight: 600;
 }
 
 .content {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ChangePasswordRequest;
 use App\Http\Requests\Admin\LoginRequest;
 use App\Http\Resources\UserResource;
 use App\Services\Admin\AuthService;
@@ -46,5 +47,15 @@ class AuthController extends Controller
         $this->auth->logout($request->user());
 
         return response()->noContent();
+    }
+
+    /**
+     * Change the admin's password, logging them out on their other devices.
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        $others = $this->auth->changePassword($request->user(), $request->validated('password'));
+
+        return response()->json(['data' => ['other_devices_logged_out' => $others]]);
     }
 }

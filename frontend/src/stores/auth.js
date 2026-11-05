@@ -58,5 +58,29 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, user, isAuthenticated, login, restoreSession, logout, request }
+  // The server logs the admin out on every other device; this one stays logged in.
+  // Returns how many other devices were logged out.
+  async function changePassword(currentPassword, password, passwordConfirmation) {
+    const { data } = await request('/admin/password', {
+      method: 'PUT',
+      body: {
+        current_password: currentPassword,
+        password,
+        password_confirmation: passwordConfirmation,
+      },
+    })
+
+    return data.other_devices_logged_out
+  }
+
+  return {
+    token,
+    user,
+    isAuthenticated,
+    login,
+    restoreSession,
+    logout,
+    request,
+    changePassword,
+  }
 })
