@@ -204,7 +204,7 @@ onMounted(() => {
         </thead>
         <tbody>
           <template v-for="entry in store.entries" :key="entry.id">
-            <tr :class="{ failed: isFailedLogin(entry) }">
+            <tr :class="{ failed: isFailedLogin(entry), 'is-open': expanded.has(entry.id) }">
               <td class="when">{{ formatDateTime(entry.created_at) }}</td>
               <td class="who">{{ entry.user?.name ?? '—' }}</td>
               <td class="what-cell">
@@ -245,8 +245,8 @@ onMounted(() => {
                   <tbody>
                     <tr v-for="(change, index) in entry.changes" :key="index">
                       <th scope="row">{{ change.field }}</th>
-                      <td>{{ change.old ?? '—' }}</td>
-                      <td>{{ change.new ?? '—' }}</td>
+                      <td class="old" data-label="Before">{{ change.old ?? '—' }}</td>
+                      <td class="new" data-label="After">{{ change.new ?? '—' }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -393,8 +393,17 @@ tr.failed td:first-child {
   box-shadow: inset 3px 0 0 var(--color-danger);
 }
 
-/* On a phone each entry is a card: when and who, then what happened, with Details beside. */
+/*
+ * On a phone each entry is a card: when and who, then what happened, with Details beside. Its
+ * details open as a panel joined to the card. Nothing uses table layout here: Safari would size
+ * the table again whenever details open, and could stretch every card past the screen.
+ */
 @media (max-width: 640px) {
+  .log,
+  .log > tbody {
+    display: block;
+  }
+
   .log > thead {
     display: none;
   }
@@ -416,10 +425,12 @@ tr.failed td:first-child {
     opacity: 0.8;
   }
 
+  /* Long emails, addresses and references wrap instead of running off the screen. */
   .data-table td.what-cell {
     grid-column: 1 / -1;
     min-width: 0;
     margin-top: 0.25rem;
+    overflow-wrap: anywhere;
   }
 
   .log td.actions {
@@ -431,13 +442,30 @@ tr.failed td:first-child {
     box-shadow: none;
   }
 
-  tr.failed {
+  tr.failed,
+  tr.failed + .details-row {
     box-shadow: inset 3px 0 0 var(--color-danger);
   }
 
-  .details-row > td {
+  /* An open card and its panel read as one: same background, no line between them. */
+  .log > tbody > tr.is-open,
+  .log > tbody > tr.details-row {
+    background: var(--color-background-soft);
+  }
+
+  .log > tbody > tr.details-row {
     display: block;
-    padding: 0.5rem 0.75rem 0.75rem;
+    border-top: 0;
+  }
+
+  .log > tbody > tr.details-row > td {
+    display: block;
+    padding: 0.15rem 0.75rem 0.75rem;
+    overflow-wrap: anywhere;
+  }
+
+  .details-row .from {
+    margin-top: 0.25rem;
   }
 }
 
@@ -472,6 +500,60 @@ tr.failed td:first-child {
 .changes tbody th {
   font-weight: 500;
   color: var(--color-heading);
+}
+
+/* On a phone each change is a small block: the field, then what it was and what it became. */
+@media (max-width: 640px) {
+  .changes,
+  .changes tbody,
+  .changes tr {
+    display: block;
+    width: 100%;
+  }
+
+  .changes thead {
+    display: none;
+  }
+
+  .changes tr {
+    padding: 0.45rem 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .changes tr:first-child {
+    padding-top: 0;
+  }
+
+  .changes th,
+  .changes td {
+    display: block;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .changes td {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+  }
+
+  .changes td::before {
+    content: attr(data-label);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    opacity: 0.7;
+  }
+
+  .changes td.old {
+    opacity: 0.85;
+  }
+
+  .changes td.new {
+    color: var(--color-heading);
+  }
 }
 
 .detail-list {
