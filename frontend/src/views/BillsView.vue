@@ -600,6 +600,13 @@ watch(
   font-size: 1rem;
 }
 
+/* iPhone Safari puts the date at the top of a box with no padding; this much centres one line. */
+@supports (-webkit-touch-callout: none) {
+  .choice-field input[type='date'].input {
+    padding-block: calc((2.6rem - 1lh - 2px) / 2);
+  }
+}
+
 .list-head {
   display: flex;
   flex-wrap: wrap;

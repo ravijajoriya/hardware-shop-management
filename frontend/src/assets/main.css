@@ -134,6 +134,33 @@ textarea.input {
   resize: vertical;
 }
 
+/*
+ * iPhone and iPad Safari draw date boxes their own way: wider than their column (spilling off
+ * the screen or over the box beside them), taller than the other boxes, with the date centred,
+ * and blank when empty. This makes them sit like every other box, with a calendar icon so an
+ * empty one still reads as a date to pick. Only Apple's touch browsers match this test.
+ */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'].input {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    padding-right: 2.5rem;
+    text-align: left;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.15rem;
+  }
+
+  /* One line tall even when empty, so a blank box keeps the height of the others. */
+  input[type='date'].input::-webkit-date-and-time-value {
+    min-height: 1lh;
+    margin: 0;
+    text-align: left;
+  }
+}
+
 .checkbox {
   display: inline-flex;
   align-items: center;
