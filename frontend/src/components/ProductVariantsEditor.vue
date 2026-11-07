@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { formatMoney, formatQuantity } from '@/utils/format'
+import { formatMoney, formatQuantity, formatRupees } from '@/utils/format'
 import { formatStock, packWord } from '@/utils/packs'
 import { isBelowMinimum, rowStock, rowWorth, variantRow } from '@/utils/productForm'
 import InfoTip from '@/components/InfoTip.vue'
@@ -257,8 +257,8 @@ function remove(index) {
           </td>
           <td class="num worth">
             <span class="cell-label">Stock worth</span>
-            <div>{{ formatMoney(rowWorth(row, pack).cost) }}</div>
-            <div class="sells-for">sells for {{ formatMoney(rowWorth(row, pack).selling) }}</div>
+            <div>{{ formatRupees(rowWorth(row, pack).cost) }}</div>
+            <div class="sells-for">sells for {{ formatRupees(rowWorth(row, pack).selling) }}</div>
           </td>
           <td class="actions">
             <button
@@ -286,8 +286,8 @@ function remove(index) {
     <button type="button" class="btn" @click="add">Add variant</button>
     <p class="totals">
       Total stock <strong>{{ formatStock(totals.stock, unit, pack) }}</strong> · worth
-      <strong>{{ formatMoney(totals.cost) }}</strong> at cost,
-      <strong>{{ formatMoney(totals.selling) }}</strong> at selling price
+      <strong>{{ formatRupees(totals.cost) }}</strong> at cost,
+      <strong>{{ formatRupees(totals.selling) }}</strong> at selling price
     </p>
   </div>
 </template>

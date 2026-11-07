@@ -26,6 +26,11 @@ export function formatMoney(value) {
   return (paise % 100 === 0 ? wholeMoney : money).format(paise / 100)
 }
 
+// Whole rupees, for estimates such as what the stock is worth: ₹5,944 rather than ₹5,944.44.
+export function formatRupees(value) {
+  return wholeMoney.format(Math.round(Number(value ?? 0)) || 0)
+}
+
 export function formatQuantity(value, unit) {
   const amount = quantity.format(value ?? 0)
 

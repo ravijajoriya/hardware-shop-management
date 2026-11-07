@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest'
 
-import { formatDate, formatDateTime, formatMoney, formatQuantity } from '../format'
+import { formatDate, formatDateTime, formatMoney, formatQuantity, formatRupees } from '../format'
+
+describe('formatRupees', () => {
+  it('shows whole rupees only, for estimates like what the stock is worth', () => {
+    expect(formatRupees(5944.44)).toBe('₹5,944')
+    expect(formatRupees(9629.5)).toBe('₹9,630')
+    expect(formatRupees(1234567.49)).toBe('₹12,34,567')
+    expect(formatRupees(0)).toBe('₹0')
+    expect(formatRupees(null)).toBe('₹0')
+  })
+})
 
 describe('formatMoney', () => {
   it('formats rupees with Indian digit grouping', () => {

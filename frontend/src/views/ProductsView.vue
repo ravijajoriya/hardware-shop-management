@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/products'
-import { formatMoney } from '@/utils/format'
+import { formatRupees } from '@/utils/format'
 import { formatStock } from '@/utils/packs'
 import { locationLabel } from '@/utils/location'
 import { useMediaQuery } from '@/composables/useMediaQuery'
@@ -178,13 +178,13 @@ async function confirmDelete() {
     </div>
     <div class="stat">
       <span class="stat-label">Stock Value At Cost</span>
-      <span class="stat-value">{{ formatMoney(store.summary.cost_value) }}</span>
+      <span class="stat-value">{{ formatRupees(store.summary.cost_value) }}</span>
     </div>
     <div class="stat">
       <span class="stat-label">Stock Value At Sale</span>
-      <span class="stat-value">{{ formatMoney(store.summary.selling_value) }}</span>
+      <span class="stat-value">{{ formatRupees(store.summary.selling_value) }}</span>
       <span class="stat-note">
-        {{ formatMoney(store.summary.selling_value - store.summary.cost_value) }} Margin
+        {{ formatRupees(store.summary.selling_value - store.summary.cost_value) }} Margin
         <InfoTip term="Margin" />
       </span>
     </div>
@@ -288,12 +288,14 @@ async function confirmDelete() {
               <div v-if="product.low_stock" class="low">Low stock</div>
             </td>
             <td class="num p-worth" data-label="Stock Value">
-              <div>{{ formatMoney(product.stock_value.cost) }}</div>
-              <div class="sells-for">sells for {{ formatMoney(product.stock_value.selling) }}</div>
+              <div>{{ formatRupees(product.stock_value.cost) }}</div>
+              <div class="sells-for">
+                Sell Value {{ formatRupees(product.stock_value.selling) }}
+              </div>
             </td>
             <!-- On a phone the selling worth is its own value in the card (see the styles). -->
-            <td class="num sells-cell p-sells" data-label="Sells for">
-              {{ formatMoney(product.stock_value.selling) }}
+            <td class="num sells-cell p-sells" data-label="Sell Value">
+              {{ formatRupees(product.stock_value.selling) }}
             </td>
             <td class="p-status" data-label="Status">
               <span class="badge" :class="{ 'badge-active': product.is_active }">
