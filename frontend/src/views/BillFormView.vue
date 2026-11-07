@@ -22,8 +22,10 @@ import {
   normalizeMobile,
   paymentRow,
   refundAfterEdit,
+  sellAs,
   toPaise,
 } from '@/utils/billing'
+import { formatStock, packWord } from '@/utils/packs'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
@@ -184,8 +186,10 @@ const picker = ref(null)
 // Once items have come back from a bill, only its customer details can change.
 const itemsLocked = computed(() => isEdit.value && original.value?.can.edit_items === false)
 
+// A new pick is loose, so it adds to the size's loose line. A line switched to its pack stays
+// as it is, and picking the size again starts a loose line beside it: 1 coil and 5 m.
 function lineFor(variantId) {
-  return lines.value.find((line) => line.variant_id === variantId)
+  return lines.value.find((line) => line.variant_id === variantId && line.sold_as !== 'pack')
 }
 
 // Picking a size that is already on the bill adds one more of it instead of a second line.
@@ -214,10 +218,12 @@ function focusSearch() {
   picker.value?.focus()
 }
 
+function stockText(line) {
+  return formatStock(line.stock, line.loose_unit ?? line.unit, line.pack)
+}
+
 function stockNote(line) {
-  return line.stock > 0
-    ? `Only ${formatQuantity(line.stock, line.unit)} in stock`
-    : 'None in stock by the count'
+  return line.stock > 0 ? `Only ${stockText(line)} in stock` : 'None in stock by the count'
 }
 
 // --- Payment ---
@@ -327,7 +333,7 @@ const confirmMessage = computed(() => {
 
   if (shortLines.value.length) {
     const names = shortLines.value
-      .map((line) => `${itemName(line)} (${formatQuantity(line.stock, line.unit)} in stock)`)
+      .map((line) => `${itemName(line)} (${stockText(line)} in stock)`)
       .join(', ')
 
     parts.push(`More than the stock shows: ${names}. The stock count will go below zero.`)
@@ -599,8 +605,37 @@ onMounted(() => {
           <div class="line-item">
             <span class="name">{{ line.product_name }}</span>
             <span v-if="line.variant_name" class="details">{{ line.variant_name }}</span>
+            <div
+              v-if="line.pack && !line.id"
+              class="sold-as"
+              role="group"
+              :aria-label="`Sell ${itemName(line)} loose or by the ${packWord(line.pack.unit)}`"
+            >
+              <button
+                type="button"
+                class="btn"
+                :aria-pressed="line.sold_as === 'loose'"
+                :disabled="itemsLocked"
+                @click="sellAs(line, 'loose')"
+              >
+                {{ line.loose_unit.short_name }}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                :aria-pressed="line.sold_as === 'pack'"
+                :disabled="itemsLocked"
+                @click="sellAs(line, 'pack')"
+              >
+                {{ packWord(line.pack.unit) }}
+                <span class="pack-size">{{ formatQuantity(line.pack.size, line.loose_unit) }}</span>
+              </button>
+            </div>
             <p v-if="errorFor(`items.${index}.product_variant_id`)" class="field-error">
               {{ errorFor(`items.${index}.product_variant_id`) }}
+            </p>
+            <p v-if="errorFor(`items.${index}.sold_as`)" class="field-error">
+              {{ errorFor(`items.${index}.sold_as`) }}
             </p>
           </div>
 
@@ -976,6 +1011,40 @@ onMounted(() => {
 .details {
   font-size: 0.85rem;
   opacity: 0.8;
+}
+
+/* Loose or by the pack: one tap, the chosen one filled in. */
+.sold-as {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+}
+
+.sold-as .btn {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 0;
+}
+
+.sold-as .btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.sold-as .btn:last-child {
+  margin-left: -1px;
+  border-radius: 0 6px 6px 0;
+}
+
+.sold-as .btn[aria-pressed='true'] {
+  font-weight: 600;
+  color: var(--color-heading);
+  background: var(--color-background-mute);
+  border-color: hsla(160, 100%, 37%, 0.8);
+}
+
+.sold-as .pack-size {
+  margin-left: 0.3em;
+  opacity: 0.75;
 }
 
 .with-unit {

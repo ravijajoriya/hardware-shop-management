@@ -31,9 +31,10 @@ class StockHistoryService
             'recorded_at' => $item->created_at,
             'variant_name' => $item->variant_name,
             'unit' => $item->unit,
+            // As entered: "+10 coil at ₹1,000", with the average cost per coil to match.
             'change' => (float) $item->quantity,
             'purchase_price' => (float) $item->purchase_price,
-            'cost_after' => (float) $item->cost_after,
+            'cost_after' => round((float) $item->cost_after * (float) $item->unit_size, 2),
             'supplier_name' => $item->entry->supplier_name,
             'supplier_bill_number' => $item->entry->supplier_bill_number,
             'stock_entry_id' => $item->stock_entry_id,

@@ -2,7 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/products'
-import { formatMoney, formatQuantity } from '@/utils/format'
+import { formatMoney } from '@/utils/format'
+import { formatStock } from '@/utils/packs'
 import { locationLabel } from '@/utils/location'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -283,7 +284,7 @@ async function confirmDelete() {
               {{ product.location.code }}
             </td>
             <td class="num p-stock" data-label="Stock">
-              {{ formatQuantity(product.stock_quantity, product.unit) }}
+              {{ formatStock(product.stock_quantity, product.unit, product.pack) }}
               <div v-if="product.low_stock" class="low">Low stock</div>
             </td>
             <td class="num p-worth" data-label="Stock Value">

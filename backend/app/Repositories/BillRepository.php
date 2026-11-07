@@ -126,6 +126,7 @@ class BillRepository
     {
         return $bill->load([
             'items.variant.product.unit',
+            'items.variant.product.packUnit',
             'payments',
             'returns.items',
             'returns.refund',
@@ -194,7 +195,7 @@ class BillRepository
      */
     public function lock(Bill $bill): Bill
     {
-        return Bill::whereKey($bill->getKey())->lockForUpdate()->firstOrFail()->load('items.variant.product.unit');
+        return Bill::whereKey($bill->getKey())->lockForUpdate()->firstOrFail()->load(['items.variant.product.unit', 'items.variant.product.packUnit']);
     }
 
     /**

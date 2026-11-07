@@ -32,12 +32,16 @@ final class ProductSheet
         'category' => ['heading' => 'Category', 'needed' => true, 'also' => [], 'help' => 'For a subcategory write its parent first, then >, such as Paints > Exterior. Categories not in the app yet are added.', 'example' => 'Paints > Exterior'],
         'brand' => ['heading' => 'Brand', 'needed' => false, 'also' => [], 'help' => 'Leave blank when it has none. Brands not in the app yet are added.', 'example' => 'Asian Paints'],
         'unit' => ['heading' => 'Unit', 'needed' => true, 'also' => [], 'help' => 'How it is counted and sold: one of the units listed below, such as pc, kg or ltr.', 'example' => 'ltr'],
+        'pack' => ['heading' => 'Bought in', 'needed' => false, 'also' => ['pack', 'pack unit'], 'help' => 'Only for something bought in packs and sold loose, such as wire bought in coils and sold by the metre: the pack, such as coil, bag or box. Leave blank otherwise.', 'example' => 'coil'],
+        'pack_size' => ['heading' => 'Pack size', 'needed' => false, 'also' => ['in one pack', 'per pack'], 'help' => 'With Bought in: how many of the unit are in one pack, such as 90 (metres in a coil).', 'example' => 90],
         'sku' => ['heading' => 'Item code (SKU)', 'needed' => false, 'also' => ['sku', 'item code', 'code'], 'help' => 'Your own code for it. Optional, and each one must be different.', 'example' => 'APX-1L'],
-        'purchase_price' => ['heading' => 'Purchase price', 'needed' => true, 'also' => ['cost price', 'cost', 'buying price'], 'help' => 'What one unit costs you to buy, in rupees.', 'example' => 300],
-        'selling_price' => ['heading' => 'Selling price', 'needed' => true, 'also' => ['price', 'sale price', 'rate'], 'help' => 'What you sell one unit for, in rupees.', 'example' => 360],
+        'purchase_price' => ['heading' => 'Purchase price', 'needed' => true, 'also' => ['cost price', 'cost', 'buying price'], 'help' => 'What one unit costs you to buy, in rupees. With Bought in, what one pack costs you.', 'example' => 300],
+        'selling_price' => ['heading' => 'Selling price', 'needed' => true, 'also' => ['price', 'sale price', 'rate'], 'help' => 'What you sell one unit for, in rupees. With Bought in, this is the loose price, such as the price of one metre.', 'example' => 360],
+        'pack_price' => ['heading' => 'Pack price', 'needed' => false, 'also' => ['full pack price'], 'help' => 'With Bought in: what a full pack sells for. Blank means the selling price times the pack size.', 'example' => 1350],
         'mrp' => ['heading' => 'MRP', 'needed' => false, 'also' => [], 'help' => 'The price printed on the pack. It cannot be below the selling price.', 'example' => 399],
-        'stock' => ['heading' => 'Opening stock', 'needed' => true, 'also' => ['stock', 'quantity', 'qty'], 'help' => 'How many you have now. Whole numbers for units such as pc and box.', 'example' => 10],
-        'min_stock' => ['heading' => 'Minimum stock', 'needed' => false, 'also' => ['min stock', 'reorder level'], 'help' => 'Below this it shows as low on stock. Leave blank for no warning.', 'example' => 4],
+        'stock' => ['heading' => 'Opening stock', 'needed' => true, 'also' => ['stock', 'quantity', 'qty'], 'help' => 'How many you have now. Whole numbers for units such as pc and box. With Bought in, the full packs you have.', 'example' => 10],
+        'loose_stock' => ['heading' => 'Loose stock', 'needed' => false, 'also' => ['loose'], 'help' => 'With Bought in: what you have loose besides the full packs, such as 85 (metres left on an open coil).', 'example' => 85],
+        'min_stock' => ['heading' => 'Minimum stock', 'needed' => false, 'also' => ['min stock', 'reorder level'], 'help' => 'Below this it shows as low on stock. Leave blank for no warning. With Bought in, counted in packs.', 'example' => 4],
         'area' => ['heading' => 'Shop or godown', 'needed' => false, 'also' => ['kept at', 'shop godown', 'area'], 'help' => 'Where it is kept: Shop or Godown. Blank means Shop.', 'example' => 'Godown'],
         'floor' => ['heading' => 'Floor', 'needed' => false, 'also' => [], 'help' => 'Ground, or a floor number such as 1.', 'example' => 1],
         'rack' => ['heading' => 'Rack', 'needed' => false, 'also' => [], 'help' => 'The rack, such as 3 or A. It needs the floor.', 'example' => 3],
@@ -50,10 +54,13 @@ final class ProductSheet
 
     /** Example rows for the template: a paint in two sizes, a hammer, and nails sold by weight. */
     private const EXAMPLES = [
-        ['Apex Exterior Emulsion', '1 L', 'Paints > Exterior', 'Asian Paints', 'ltr', 'APX-1L', 300, 360, 399, 10, 4, 'Godown', 1, 3, 2, '3209', 18, 'Weatherproof wall paint.', 'Yes'],
-        ['Apex Exterior Emulsion', '4 L', 'Paints > Exterior', 'Asian Paints', 'ltr', 'APX-4L', 1100, 1350, 1499, 6, 2, 'Godown', 1, 3, 2, '3209', 18, 'Weatherproof wall paint.', 'Yes'],
-        ['Claw Hammer', '', 'Hand Tools', 'Stanley', 'pc', 'HAM-500', 250, 320, 350, 15, 5, 'Shop', 'Ground', 'A', 1, '8205', 18, '', 'Yes'],
-        ['Wire Nails', '2 inch', 'Hardware > Nails', '', 'kg', '', 90, 120, '', 25.5, 10, 'Shop', 'Ground', 'B', 4, '7317', 18, '', 'Yes'],
+        ['Apex Exterior Emulsion', '1 L', 'Paints > Exterior', 'Asian Paints', 'ltr', '', '', 'APX-1L', 300, 360, '', 399, 10, '', 4, 'Godown', 1, 3, 2, '3209', 18, 'Weatherproof wall paint.', 'Yes'],
+        ['Apex Exterior Emulsion', '4 L', 'Paints > Exterior', 'Asian Paints', 'ltr', '', '', 'APX-4L', 1100, 1350, '', 1499, 6, '', 2, 'Godown', 1, 3, 2, '3209', 18, 'Weatherproof wall paint.', 'Yes'],
+        ['Claw Hammer', '', 'Hand Tools', 'Stanley', 'pc', '', '', 'HAM-500', 250, 320, '', 350, 15, '', 5, 'Shop', 'Ground', 'A', 1, '8205', 18, '', 'Yes'],
+        ['Wire Nails', '2 inch', 'Hardware > Nails', '', 'kg', '', '', '', 90, 120, '', '', 25.5, '', 10, 'Shop', 'Ground', 'B', 4, '7317', 18, '', 'Yes'],
+        // Bought in 90 m coils at ₹1,000 and sold by the metre at ₹18, or ₹1,350 a coil: 5 coils
+        // and 85 m from an open one, with a warning below 2 coils.
+        ['Copper Wire', '1 mm', 'Electricals > Wires', 'Polycab', 'm', 'coil', 90, 'WIRE-1MM', 1000, 18, 1350, '', 5, 85, 2, 'Shop', 'Ground', 'C', 1, '8544', 18, 'Sold by the metre or by the coil.', 'Yes'],
     ];
 
     /**
@@ -158,7 +165,7 @@ final class ProductSheet
      * headings (needed ones marked *) and lists to pick from, an Example sheet, and a Help
      * sheet explaining every column with the units, categories and brands already in the app.
      *
-     * @param  list<array{short_name: string, name: string}>  $units
+     * @param  list<array{short_name: string, name: string, allow_decimal?: bool}>  $units
      * @param  list<string>  $categories  Category paths, such as Paints > Exterior.
      * @param  list<string>  $brands
      */
@@ -177,6 +184,8 @@ final class ProductSheet
         $lastRow = self::MAX_ROWS + 1;
         $choices = [
             'unit' => array_column($units, 'short_name'),
+            // Packs are counted whole: box, bag, coil and the like.
+            'pack' => array_column(array_filter($units, fn (array $unit) => ! ($unit['allow_decimal'] ?? false)), 'short_name'),
             'area' => ['Shop', 'Godown'],
             'active' => ['Yes', 'No'],
         ];
@@ -206,6 +215,7 @@ final class ProductSheet
             ['How to fill in the Products sheet'],
             ['One row for each product. A product sold in several sizes or colours gets one row for each, with the same product name.'],
             ['Columns marked * are needed. The order of the columns does not matter.'],
+            ['Bought in packs and sold loose, such as wire in 90 m coils sold by the metre? Fill in Bought in (coil) and Pack size (90). Then write the purchase price of one coil, the selling price of one metre, the full coils you have in Opening stock and any loose metres in Loose stock.'],
             [],
             ['Column', 'Needed', 'What to write', 'Example'],
         ];

@@ -4,8 +4,17 @@ import { RouterLink, onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useStockStore } from '@/stores/stock'
 import { formatMoney, formatQuantity } from '@/utils/format'
+import { formatStock, packWord } from '@/utils/packs'
 import { itemName, lineTotal, toPaise } from '@/utils/billing'
-import { costAfter, entryPayload, entryTotal, isoDate, stockLine } from '@/utils/stock'
+import {
+  costAfter,
+  enterAs,
+  entryPayload,
+  entryTotal,
+  isoDate,
+  lineCost,
+  stockLine,
+} from '@/utils/stock'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 import ProductPicker from '@/components/ProductPicker.vue'
@@ -38,14 +47,16 @@ function errorFor(field) {
   return fieldErrors.value[field]?.[0]
 }
 
-function lineFor(variantId) {
-  return lines.value.find((line) => line.variant_id === variantId)
+// A new pick comes in packs when the product is bought in packs, and loose otherwise, so it
+// adds to the size's line of that kind. A line switched the other way stays as it is.
+function lineFor(variantId, enteredAs) {
+  return lines.value.find((line) => line.variant_id === variantId && line.entered_as === enteredAs)
 }
 
 // Picking a size that is already listed adds one more of it instead of a second line.
 // Either way the quantity is selected, ready to be typed over.
 async function pick(product, variant) {
-  let line = lineFor(variant.id)
+  let line = lineFor(variant.id, product.pack ? 'pack' : 'loose')
 
   if (line) {
     line.quantity = (Number(line.quantity) || 0) + 1
@@ -70,7 +81,7 @@ function focusPicker() {
 
 // Shown when this delivery changes what the size cost.
 function costChanges(line) {
-  return line.cost !== null && toPaise(costAfter(line)) !== toPaise(line.cost)
+  return line.cost !== null && toPaise(costAfter(line)) !== toPaise(lineCost(line))
 }
 
 async function save() {
@@ -231,9 +242,38 @@ onMounted(() => {
           <div class="line-item">
             <span class="name">{{ line.product_name }}</span>
             <span v-if="line.variant_name" class="details">{{ line.variant_name }}</span>
-            <span class="details">{{ formatQuantity(line.stock, line.unit) }} in stock now</span>
+            <span class="details"
+              >{{ formatStock(line.stock, line.loose_unit, line.pack) }} in stock now</span
+            >
+            <div
+              v-if="line.pack"
+              class="entered-as"
+              role="group"
+              :aria-label="`${itemName(line)} came in packs or loose`"
+            >
+              <button
+                type="button"
+                class="btn"
+                :aria-pressed="line.entered_as === 'pack'"
+                @click="enterAs(line, 'pack')"
+              >
+                {{ packWord(line.pack.unit) }}
+                <span class="pack-size">{{ formatQuantity(line.pack.size, line.loose_unit) }}</span>
+              </button>
+              <button
+                type="button"
+                class="btn"
+                :aria-pressed="line.entered_as === 'loose'"
+                @click="enterAs(line, 'loose')"
+              >
+                {{ line.loose_unit.short_name }}
+              </button>
+            </div>
             <p v-if="errorFor(`items.${index}.product_variant_id`)" class="field-error">
               {{ errorFor(`items.${index}.product_variant_id`) }}
+            </p>
+            <p v-if="errorFor(`items.${index}.entered_as`)" class="field-error">
+              {{ errorFor(`items.${index}.entered_as`) }}
             </p>
           </div>
 
@@ -284,7 +324,9 @@ onMounted(() => {
           <div class="line-cost">
             <span class="caption" aria-hidden="true">Average cost</span>
             <strong>{{ formatMoney(costAfter(line)) }}</strong>
-            <span v-if="costChanges(line)" class="details">was {{ formatMoney(line.cost) }}</span>
+            <span v-if="costChanges(line)" class="details"
+              >was {{ formatMoney(lineCost(line)) }}</span
+            >
           </div>
 
           <button
@@ -552,5 +594,39 @@ onMounted(() => {
   .form-section {
     padding: 1rem;
   }
+}
+
+/* In packs or loose: one tap, the chosen one filled in. */
+.entered-as {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+}
+
+.entered-as .btn {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 0;
+}
+
+.entered-as .btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.entered-as .btn:last-child {
+  margin-left: -1px;
+  border-radius: 0 6px 6px 0;
+}
+
+.entered-as .btn[aria-pressed='true'] {
+  font-weight: 600;
+  color: var(--color-heading);
+  background: var(--color-background-mute);
+  border-color: hsla(160, 100%, 37%, 0.8);
+}
+
+.entered-as .pack-size {
+  margin-left: 0.3em;
+  opacity: 0.75;
 }
 </style>

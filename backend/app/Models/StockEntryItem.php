@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUnitSize;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'product_id', 'product_variant_id', 'product_name', 'variant_name', 'unit',
+    'product_id', 'product_variant_id', 'product_name', 'variant_name', 'unit', 'unit_size', 'base_unit',
     'quantity', 'purchase_price', 'line_total', 'cost_before', 'cost_after',
 ])]
 class StockEntryItem extends Model
 {
+    use HasUnitSize;
+
     /**
      * @return BelongsTo<StockEntry, $this>
      */
@@ -49,10 +52,12 @@ class StockEntryItem extends Model
     {
         return [
             'quantity' => 'decimal:3',
+            'unit_size' => 'decimal:3',
             'purchase_price' => 'decimal:2',
             'line_total' => 'decimal:2',
-            'cost_before' => 'decimal:2',
-            'cost_after' => 'decimal:2',
+            // The size's average cost per loose unit, like its purchase price.
+            'cost_before' => 'decimal:4',
+            'cost_after' => 'decimal:4',
         ];
     }
 }

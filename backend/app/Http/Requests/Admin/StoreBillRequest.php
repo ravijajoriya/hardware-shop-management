@@ -3,13 +3,17 @@
 namespace App\Http\Requests\Admin;
 
 use App\Enums\PaymentMethod;
+use App\Http\Requests\Concerns\ChecksRepeatedItems;
 use App\Support\MobileNumber;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreBillRequest extends FormRequest
 {
+    use ChecksRepeatedItems;
+
     private const MAX_AMOUNT = 9999999999.99;
 
     /**
@@ -37,7 +41,10 @@ class StoreBillRequest extends FormRequest
 
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['array'],
-            'items.*.product_variant_id' => ['required', 'integer', 'distinct', Rule::exists('product_variants', 'id')],
+            'items.*.product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
+            // A product bought in packs is sold loose (5 m) unless the line says "pack" (1 coil).
+            // Quantity and price are in that unit.
+            'items.*.sold_as' => ['nullable', Rule::in(['loose', 'pack'])],
             'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999.999', 'decimal:0,3'],
             'items.*.price' => ['required', 'min:0', ...$amount],
 
@@ -81,8 +88,19 @@ class StoreBillRequest extends FormRequest
             'customer.mobile.regex' => 'Enter a 10-digit mobile number, such as 98765 43210.',
             'items.required' => 'Add at least one item to the bill.',
             'items.min' => 'Add at least one item to the bill.',
-            'items.*.product_variant_id.distinct' => 'This item is on the bill twice. Change its quantity instead.',
             'items.*.product_variant_id.exists' => 'This item no longer exists. Remove it from the bill.',
+        ];
+    }
+
+    /**
+     * Get the "after" validation callables for the request.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [
+            fn (Validator $validator) => $this->rejectRepeatedItems($validator, 'sold_as', 'loose', 'This item is on the bill twice. Change its quantity instead.'),
         ];
     }
 

@@ -83,7 +83,7 @@ describe('entry totals and payload', () => {
       supplier_bill_number: null,
       received_on: '2026-11-03',
       note: null,
-      items: [{ product_variant_id: 50, quantity: 20, purchase_price: 310.5 }],
+      items: [{ product_variant_id: 50, entered_as: 'loose', quantity: 20, purchase_price: 310.5 }],
     })
   })
 

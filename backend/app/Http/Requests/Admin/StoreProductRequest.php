@@ -38,6 +38,10 @@ class StoreProductRequest extends FormRequest
             // A brand that is not in the list yet; it is created along with the product.
             'new_brand_name' => ['nullable', 'string', 'max:255', 'prohibits:brand_id', Rule::unique('brands', 'name')],
             'unit_id' => ['required', 'integer', Rule::exists('units', 'id')],
+            // Bought in packs and sold loose by the unit above, such as "1 Coil = 90 m". The
+            // service checks that the pack is counted whole and fits the unit.
+            'pack_unit_id' => ['nullable', 'integer', Rule::exists('units', 'id'), 'different:unit_id'],
+            'pack_size' => ['nullable', 'required_with:pack_unit_id', 'numeric', 'gt:1', 'max:'.self::MAX_STOCK, 'decimal:0,3'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $this->uniqueSlugRule()],
             'description' => ['nullable', 'string', 'max:2000'],
@@ -61,8 +65,12 @@ class StoreProductRequest extends FormRequest
                 'nullable', 'string', 'max:100', 'distinct:ignore_case',
             ],
             'variants.*.sku' => ['nullable', 'string', 'max:50', 'distinct:ignore_case', $this->uniqueSkuRule()],
-            'variants.*.purchase_price' => ['required', ...$price],
+            // Per loose unit. Four decimals, for a cost worked out from a pack's price: a coil
+            // of 90 m bought for ₹1,000 costs ₹11.1111 a metre.
+            'variants.*.purchase_price' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_PRICE, 'decimal:0,4'],
             'variants.*.selling_price' => ['required', ...$price],
+            // What a full pack sells for; empty means the loose price times the pack size.
+            'variants.*.pack_price' => ['nullable', ...$price],
             'variants.*.mrp' => ['nullable', ...$price, 'gte:variants.*.selling_price'],
             // Opening stock, for new variants only; after that it changes through Stock in and
             // stock corrections, so an existing variant's stock is not needed (and is not saved).
@@ -84,6 +92,8 @@ class StoreProductRequest extends FormRequest
             'brand_id' => 'brand',
             'new_brand_name' => 'brand name',
             'unit_id' => 'unit',
+            'pack_unit_id' => 'pack',
+            'pack_size' => 'pack size',
             'hsn_code' => 'HSN code',
             'gst_rate' => 'GST rate',
             'location_area' => 'shop or godown',
@@ -94,6 +104,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.sku' => 'SKU',
             'variants.*.purchase_price' => 'purchase price',
             'variants.*.selling_price' => 'selling price',
+            'variants.*.pack_price' => 'pack price',
             'variants.*.mrp' => 'MRP',
             'variants.*.stock_quantity' => 'stock',
             'variants.*.min_stock' => 'minimum stock',
@@ -117,6 +128,9 @@ class StoreProductRequest extends FormRequest
             'location_floor.required_with' => 'Choose the floor this rack is on.',
             'location_rack.required_with' => 'Enter the rack this shelf is in.',
             'location_rack.regex' => 'Use up to 4 letters or numbers for the rack, such as 3 or A.',
+            'pack_unit_id.different' => 'The pack must be different from the unit it is sold loose by.',
+            'pack_size.required_with' => 'Enter how many are in one pack.',
+            'pack_size.gt' => 'A pack holds more than one.',
             'variants.required' => 'Add at least one variant with its prices and stock.',
             'variants.min' => 'Add at least one variant with its prices and stock.',
             'variants.*.name.required' => 'Give each variant a name, such as its size or colour.',

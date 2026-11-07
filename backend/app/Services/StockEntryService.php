@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ActivityAction;
+use App\Models\Product;
 use App\Models\StockEntry;
 use App\Models\StockEntryItem;
 use App\Models\User;
@@ -17,6 +18,12 @@ use Illuminate\Validation\ValidationException;
 
 class StockEntryService
 {
+    /**
+     * A size's purchase price is kept per loose unit to a ten-thousandth of a rupee, so a pack's
+     * price divides back exactly: a ₹1,000 coil of 90 m costs ₹11.1111 a metre.
+     */
+    private const SCALE = 10000;
+
     public function __construct(
         private readonly StockEntryRepository $entries,
         private readonly ProductVariantRepository $variants,
@@ -73,18 +80,23 @@ class StockEntryService
                 $variant = $this->variants->lockForStock($line['variant']);
                 $stock = (float) $variant->stock_quantity;
                 $costBefore = $variant->purchase_price;
-                $cost = Money::toRupees(StockCost::afterAdding($stock, $this->paise($costBefore), $line['quantity'], $line['price']));
+                $cost = $this->kept(
+                    StockCost::afterAdding($stock, $this->precise($costBefore), $line['loose_quantity'], $line['unit_cost']) / self::SCALE,
+                    $line['variant']->product,
+                );
 
-                $this->variants->updateStock($variant, round($stock + $line['quantity'], 3), $cost);
+                $this->variants->updateStock($variant, round($stock + $line['loose_quantity'], 3), $cost);
                 $this->entries->addItem($entry, [
                     ...$line['item'],
                     'cost_before' => $costBefore,
                     'cost_after' => $cost,
                 ]);
 
+                // Costs read per pack for a line entered in packs, the way it was bought.
+                $size = $line['item']['unit_size'];
                 $logged[] = $this->itemName($line['item']).': '.ActivitySnapshot::quantity($line['quantity'], $line['item']['unit'])
-                    .' at '.Money::format($line['price']).', average cost '
-                    .(ActivitySnapshot::money($costBefore) ?? '—').' → '.ActivitySnapshot::money($cost);
+                    .' at '.Money::format($line['price']).', average cost'.($size !== 1.0 ? " per {$line['item']['unit']}" : '').' '
+                    .($costBefore === null ? '—' : ActivitySnapshot::money((float) $costBefore * $size)).' → '.ActivitySnapshot::money($cost * $size);
             }
 
             $count = count($lines);
@@ -125,13 +137,13 @@ class StockEntryService
 
                 $variant = $this->variants->lockForStock($item->variant);
                 $stock = (float) $variant->stock_quantity;
-                $quantity = (float) $item->quantity;
                 $cost = $this->costWithout($item, $variant->purchase_price, $stock);
 
-                $this->variants->updateStock($variant, round($stock - $quantity, 3), $cost);
+                $this->variants->updateStock($variant, round($stock - $item->inLooseUnits($item->quantity), 3), $cost);
 
-                $logged[] = "{$this->itemName($item->toArray())}: −".ActivitySnapshot::quantity($quantity, $item->unit)
-                    .', purchase price back to '.(ActivitySnapshot::money($cost) ?? '—');
+                $logged[] = "{$this->itemName($item->toArray())}: −".ActivitySnapshot::quantity($item->quantity, $item->unit)
+                    .', purchase price back to '.($cost === null ? '—' : ActivitySnapshot::money($cost * (float) $item->unit_size))
+                    .($item->isInPacks() ? " per {$item->unit}" : '');
             }
 
             $this->activity->record(
@@ -156,14 +168,20 @@ class StockEntryService
             return (float) $item->cost_before;
         }
 
-        $without = StockCost::afterRemoving($stock, $this->paise($cost), (float) $item->quantity, Money::toPaise($item->purchase_price));
+        $without = StockCost::afterRemoving(
+            $stock,
+            $this->precise($cost),
+            $item->inLooseUnits($item->quantity),
+            $this->unitCost((float) $item->purchase_price, (float) $item->unit_size),
+        );
 
-        return $without === null ? null : Money::toRupees($without);
+        return $without === null ? null : $this->kept($without / self::SCALE, $item->variant->product);
     }
 
     /**
      * Each item with its size, quantity and price worked out, ready to log. Units such as
-     * Piece are counted in whole numbers.
+     * Piece are counted in whole numbers. A product bought in packs is entered in packs
+     * (10 coils at the coil's price) unless the line says it came loose.
      *
      * @param  list<array<string, mixed>>  $items
      * @return list<array<string, mixed>>
@@ -178,10 +196,21 @@ class StockEntryService
 
         foreach ($items as $index => $item) {
             $variant = $variants[(int) $item['product_variant_id']];
-            $unit = $variant->product->unit;
+            $product = $variant->product;
+            $packSize = $product->packSize();
+            $inPacks = ($item['entered_as'] ?? ($packSize === null ? 'loose' : 'pack')) === 'pack';
+
+            if ($inPacks && $packSize === null) {
+                $errors["items.{$index}.entered_as"] = ["{$product->name} is not bought in packs."];
+
+                continue;
+            }
+
+            $unit = $inPacks ? $product->packUnit : $product->unit;
+            $unitSize = $inPacks ? $packSize : 1.0;
             $quantity = (float) $item['quantity'];
 
-            if (! $unit->allow_decimal && floor($quantity) !== $quantity) {
+            if (($inPacks || ! $unit->allow_decimal) && floor($quantity) !== $quantity) {
                 $errors["items.{$index}.quantity"] = ["{$unit->name} ({$unit->short_name}) is counted in whole numbers."];
 
                 continue;
@@ -193,14 +222,18 @@ class StockEntryService
             $lines[] = [
                 'variant' => $variant,
                 'quantity' => $quantity,
+                'loose_quantity' => round($quantity * $unitSize, 3),
                 'price' => $price,
+                'unit_cost' => $this->unitCost(Money::toRupees($price), $unitSize),
                 'line_total' => $lineTotal,
                 'item' => [
                     'product_id' => $variant->product_id,
                     'product_variant_id' => $variant->id,
-                    'product_name' => $variant->product->name,
+                    'product_name' => $product->name,
                     'variant_name' => $variant->name,
                     'unit' => $unit->short_name,
+                    'unit_size' => $unitSize,
+                    'base_unit' => $product->unit->short_name,
                     'quantity' => $quantity,
                     'purchase_price' => Money::toRupees($price),
                     'line_total' => Money::toRupees($lineTotal),
@@ -233,8 +266,29 @@ class StockEntryService
         return ($item['variant_name'] ?? null) ? "{$item['product_name']} ({$item['variant_name']})" : $item['product_name'];
     }
 
-    private function paise(?string $rupees): ?int
+    /**
+     * An average cost as it is kept: to the paisa, as always, for a product sold one way, and
+     * to a ten-thousandth of a rupee for one bought in packs, so a pack's price divides back.
+     */
+    private function kept(float $cost, ?Product $product): float
     {
-        return $rupees === null ? null : Money::toPaise($rupees);
+        return round($cost, $product?->packSize() === null ? 2 : 4);
+    }
+
+    /**
+     * A purchase price per loose unit, in ten-thousandths of a rupee.
+     */
+    private function precise(?string $rupees): ?int
+    {
+        return $rupees === null ? null : (int) round((float) $rupees * self::SCALE);
+    }
+
+    /**
+     * What one loose unit cost, in ten-thousandths of a rupee, from the price of one of the
+     * line's units: a ₹1,000 coil of 90 m is 111,111 (₹11.1111) a metre.
+     */
+    private function unitCost(float $price, float $unitSize): int
+    {
+        return (int) round($price * self::SCALE / $unitSize);
     }
 }

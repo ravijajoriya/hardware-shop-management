@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read ProductImage|null $mainImage
  */
 #[Fillable([
-    'category_id', 'brand_id', 'unit_id', 'name', 'slug', 'description',
+    'category_id', 'brand_id', 'unit_id', 'pack_unit_id', 'pack_size', 'name', 'slug', 'description',
     'hsn_code', 'gst_rate', 'is_active',
     'location_area', 'location_floor', 'location_rack', 'location_shelf', 'location_code',
 ])]
@@ -58,6 +58,24 @@ class Product extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    /**
+     * The pack it is bought in, such as Coil, when it is also sold loose by its unit.
+     *
+     * @return BelongsTo<Unit, $this>
+     */
+    public function packUnit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'pack_unit_id');
+    }
+
+    /**
+     * How many of its loose unit are in one pack, such as 90 (m in a coil); null without a pack.
+     */
+    public function packSize(): ?float
+    {
+        return $this->pack_unit_id && $this->pack_size !== null ? (float) $this->pack_size : null;
     }
 
     /**
@@ -152,6 +170,7 @@ class Product extends Model
     {
         return [
             'gst_rate' => 'decimal:2',
+            'pack_size' => 'decimal:3',
             'is_active' => 'boolean',
             'location_area' => StorageArea::class,
             'location_floor' => 'integer',

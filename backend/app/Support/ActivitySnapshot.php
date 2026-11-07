@@ -21,13 +21,16 @@ final class ActivitySnapshot
     public static function product(Product $product): array
     {
         // Reloaded, so a snapshot taken after a save sees the saved category, brand and sizes.
-        $product->load(['category', 'brand', 'unit', 'variants']);
+        $product->load(['category', 'brand', 'unit', 'packUnit', 'variants']);
+        $packSize = $product->packSize();
+        $pack = $packSize === null ? null : $product->packUnit->name;
 
         $fields = [
             'name' => ['Name', $product->name],
             'category' => ['Category', $product->category?->name],
             'brand' => ['Brand', $product->brand?->name],
             'unit' => ['Unit', $product->unit ? "{$product->unit->name} ({$product->unit->short_name})" : null],
+            'pack' => ['Bought in', $pack === null ? null : "{$pack} of ".self::quantity($packSize, $product->unit?->short_name)],
             'location' => ['Location', $product->location_code],
             'hsn_code' => ['HSN code', $product->hsn_code],
             'gst_rate' => ['GST rate', $product->gst_rate === null ? null : self::number($product->gst_rate).'%'],
@@ -46,8 +49,12 @@ final class ActivitySnapshot
             $fields += [
                 "{$key}.name" => ["Size name{$of}", $variant->name],
                 "{$key}.sku" => ["SKU{$of}", $variant->sku],
-                "{$key}.purchase_price" => ["Purchase price{$of}", self::money($variant->purchase_price)],
+                // Bought in packs, its cost reads per pack, the way it was entered.
+                "{$key}.purchase_price" => $pack === null
+                    ? ["Purchase price{$of}", self::money($variant->purchase_price)]
+                    : ["Purchase price per {$pack}{$of}", self::money(round((float) $variant->purchase_price * $packSize, 2))],
                 "{$key}.selling_price" => ["Selling price{$of}", self::money($variant->selling_price)],
+                "{$key}.pack_price" => [($pack ?? 'Pack')." price{$of}", $pack === null ? null : self::money($variant->fullPackPrice($product))],
                 "{$key}.mrp" => ["MRP{$of}", self::money($variant->mrp)],
                 "{$key}.stock" => ["Stock{$of}", self::quantity($variant->stock_quantity, $unit)],
                 "{$key}.min_stock" => ["Minimum stock{$of}", $variant->min_stock === null ? null : self::quantity($variant->min_stock, $unit)],

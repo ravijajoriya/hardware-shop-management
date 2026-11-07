@@ -169,6 +169,12 @@ const doneText = computed(() => {
       Rack and Shelf <InfoTip term="Location code" />, HSN code <InfoTip term="HSN" />, GST rate
       <InfoTip term="GST" />, Description, Active.
     </p>
+    <p class="columns">
+      <strong>Bought in packs and sold loose,</strong> such as wire in 90 m coils sold by the metre?
+      Fill in Bought in (coil) and Pack size (90). Then write what one coil costs, what one metre
+      sells for, a Pack price for a full coil if it differs, the full coils you have in Opening
+      stock and any loose metres in Loose stock.
+    </p>
     <p v-if="templateError" class="alert-error" role="alert">{{ templateError }}</p>
     <button type="button" class="btn" :disabled="templateBusy" @click="downloadTemplate">
       {{ templateBusy ? 'Preparing…' : 'Download template' }}
