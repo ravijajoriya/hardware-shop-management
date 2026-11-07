@@ -29,6 +29,7 @@ async function submit() {
 <template>
   <main class="login">
     <form class="card" @submit.prevent="submit">
+      <img class="logo" src="/favicon.svg" alt="" width="48" height="48" />
       <h1>Admin login</h1>
       <p class="subtitle">Hardware Shop Management</p>
 
@@ -68,6 +69,11 @@ async function submit() {
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
   border-radius: 8px;
+}
+
+.logo {
+  display: block;
+  margin-bottom: 1rem;
 }
 
 h1 {

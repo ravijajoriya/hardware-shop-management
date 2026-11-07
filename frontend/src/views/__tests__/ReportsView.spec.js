@@ -23,6 +23,8 @@ const report = {
     received: { cash: 700, upi: 350, bank_transfer: 100, total: 1150 },
     refunded: { cash: 350, upi: 0, bank_transfer: 0, total: 350 },
     net_received: 800,
+    due: { total: 80, bills: 1, customers: 1 },
+    due_overall: { total: 1450, bills: 4, customers: 3 },
   },
   days: [
     {
@@ -84,6 +86,7 @@ describe('ReportsView', () => {
       routes: [
         { path: '/reports', name: 'reports', component: ReportsView },
         { path: '/products/:id', name: 'product-show', component: blank },
+        { path: '/customers', name: 'customers', component: blank },
         { path: '/customers/:id', name: 'customer-show', component: blank },
       ],
     })
@@ -118,6 +121,13 @@ describe('ReportsView', () => {
     // What stayed with the shop: ₹700 cash in, ₹350 cash back.
     expect(stats[2]).toContain('Cash ₹350 · Online ₹450')
     expect(stats[2]).toContain('₹1,150 in, ₹350 given back')
+
+    // What is still owed: on this period's bills, and from everyone, with a link to who owes.
+    expect(stats[3]).toContain('₹80')
+    expect(stats[3]).toContain('Still unpaid on 1 bill of this period')
+    expect(stats[3]).toContain('₹1,450 due in all, from 3 customers')
+    expect(wrapper.findAll('.stat')[3].classes()).toContain('stat-owing')
+    expect(wrapper.findAll('.stat')[3].get('a').attributes('href')).toBe('/customers?with_due=1')
     expect(wrapper.text()).toContain('Treat it as a close estimate.')
 
     const days = wrapper

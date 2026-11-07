@@ -165,6 +165,26 @@ watch(
           {{ formatMoney(summary.refunded.total) }} given back
         </span>
       </div>
+      <div class="stat" :class="{ 'stat-owing': summary.due.total > 0 }">
+        <span class="stat-label">Due <InfoTip term="Due" /></span>
+        <span class="stat-value">{{ formatMoney(summary.due.total) }}</span>
+        <span class="stat-note">
+          {{
+            summary.due.total > 0
+              ? `Still unpaid on ${summary.due.bills} ${summary.due.bills === 1 ? 'bill' : 'bills'} of this period`
+              : 'Every bill of this period is paid'
+          }}
+        </span>
+        <RouterLink
+          v-if="summary.due_overall.customers > 0"
+          class="stat-note"
+          :to="{ name: 'customers', query: { with_due: '1' } }"
+        >
+          {{ formatMoney(summary.due_overall.total) }} due in all, from
+          {{ summary.due_overall.customers }}
+          {{ summary.due_overall.customers === 1 ? 'customer' : 'customers' }}
+        </RouterLink>
+      </div>
     </section>
 
     <p v-if="report.days.length === 0" class="empty">Nothing was sold or paid in this period.</p>
@@ -369,6 +389,7 @@ watch(
 }
 
 .stat-loss .stat-value,
+.stat-owing .stat-value,
 .loss {
   color: var(--color-danger);
 }
@@ -474,11 +495,6 @@ watch(
   .stat-value {
     font-size: 1.15rem;
     overflow-wrap: anywhere;
-  }
-
-  /* Money received has two lines of notes, so it gets the whole width. */
-  .stats .stat:last-child {
-    grid-column: 1 / -1;
   }
 
   .block {
