@@ -40,7 +40,12 @@ class ReportService
         return [
             'from' => $from,
             'to' => $to,
-            'summary' => $this->summary($sold, $returned, $payments, $refunds),
+            'summary' => [
+                ...$this->summary($sold, $returned, $payments, $refunds),
+                // Still owed now: on the bills made in the period, and on every bill.
+                'due' => $this->reports->dues($start, $until),
+                'due_overall' => $this->reports->dues(),
+            ],
             'days' => $this->days($sold, $returned, $payments, $refunds),
             'products' => $this->products($sold, $returned),
             'customers' => $this->customers($sold, $returned),

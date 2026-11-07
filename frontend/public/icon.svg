@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Hardware Shop Management</title>
+  <!-- Full square for phone home screens, which round or crop the corners themselves; the
+       wrench stays inside the middle 80% so a round crop never cuts it. -->
+  <rect width="64" height="64" fill="#00a36d"/>
+  <g fill="#fff" transform="translate(32 32) scale(0.78) translate(-32 -32) translate(-1.5 1.5) rotate(45 32 32)">
+    <path d="M24.5 9.5a12 12 0 0 0 4 20.2V50a3.5 3.5 0 0 0 7 0V29.7a12 12 0 0 0 4-20.2v9l-3.5 3.5h-8L24.5 18.5z"/>
+  </g>
+</svg>

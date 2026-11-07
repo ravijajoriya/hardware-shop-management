@@ -84,6 +84,8 @@ class SalesReportTest extends TestCase
                 'received' => ['cash' => 700, 'upi' => 350, 'bank_transfer' => 100, 'total' => 1150],
                 'refunded' => ['cash' => 350, 'upi' => 0, 'bank_transfer' => 0, 'total' => 350],
                 'net_received' => 800,
+                'due' => ['total' => 80, 'bills' => 1, 'customers' => 1],
+                'due_overall' => ['total' => 80, 'bills' => 1, 'customers' => 1],
             ])
             ->assertJsonPath('data.days', [
                 [
@@ -129,6 +131,23 @@ class SalesReportTest extends TestCase
 
         $this->getJson('/api/admin/reports/sales?from=2026-11-01&to=2026-11-02')
             ->assertJsonPath('data.summary.cost_estimated', true);
+    }
+
+    public function test_the_report_shows_what_is_still_due_on_its_bills_and_in_all(): void
+    {
+        $this->twoDays();
+
+        // Suresh's ₹180 bill of 1 November, of which he has paid ₹100.
+        $this->getJson('/api/admin/reports/sales?from=2026-11-01&to=2026-11-01')
+            ->assertOk()
+            ->assertJsonPath('data.summary.due', ['total' => 80, 'bills' => 1, 'customers' => 1])
+            ->assertJsonPath('data.summary.due_overall', ['total' => 80, 'bills' => 1, 'customers' => 1]);
+
+        // The bills of 2 November are paid, and the cancelled one owes nothing.
+        $this->getJson('/api/admin/reports/sales?from=2026-11-02&to=2026-11-02')
+            ->assertOk()
+            ->assertJsonPath('data.summary.due', ['total' => 0, 'bills' => 0, 'customers' => 0])
+            ->assertJsonPath('data.summary.due_overall.total', 80);
     }
 
     public function test_a_quiet_period_shows_zeros(): void

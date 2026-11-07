@@ -84,6 +84,25 @@ class ReportRepository
     }
 
     /**
+     * What is still owed now on the bills made in the period, or on every bill without one:
+     * the amount, how many bills it is on and how many customers owe it.
+     *
+     * @return array{total: float, bills: int, customers: int}
+     */
+    public function dues(?CarbonInterface $from = null, ?CarbonInterface $until = null): array
+    {
+        $row = Bill::query()
+            ->where('status', '!=', BillStatus::Cancelled->value)
+            ->where('due_amount', '>', 0)
+            ->when($from && $until, fn ($bills) => $bills->where('created_at', '>=', $from)->where('created_at', '<', $until))
+            ->selectRaw('COALESCE(SUM(due_amount), 0) AS total, COUNT(*) AS bills, COUNT(DISTINCT customer_id) AS customers')
+            ->toBase()
+            ->first();
+
+        return ['total' => (float) $row->total, 'bills' => (int) $row->bills, 'customers' => (int) $row->customers];
+    }
+
+    /**
      * What each of these customers owes now, on all their bills: [customer id => rupees].
      *
      * @param  list<int>  $customerIds
