@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useProductStore } from '@/stores/products'
-import { formatMoney, formatQuantity } from '@/utils/format'
+import { formatMoney } from '@/utils/format'
 import { itemName } from '@/utils/billing'
+import { costPerPack, formatStock, fullPackPrice, packWord } from '@/utils/packs'
 
 // Finds products while typing and lists every size to pick, for adding items to a bill or to a
 // delivery of stock. Enter picks the only size found.
@@ -69,6 +70,22 @@ async function search(value) {
   }
 }
 
+// The price on a size's button. A product bought in packs shows the pack's price too when
+// selling (₹18 a m · ₹1,350 a coil), and the pack's cost when buying (₹1,000 a coil).
+function priceText(product, variant) {
+  const pack = product.pack
+
+  if (!pack) {
+    return formatMoney(variant[props.priceField])
+  }
+
+  if (props.priceField === 'purchase_price') {
+    return `${formatMoney(costPerPack(variant.purchase_price, pack.size))} a ${packWord(pack.unit)}`
+  }
+
+  return `${formatMoney(variant[props.priceField])} a ${product.unit.short_name} · ${formatMoney(fullPackPrice(variant, pack))} a ${packWord(pack.unit)}`
+}
+
 // Every size in the results, so Enter can pick one when it is the only one.
 const choices = computed(() =>
   results.value.flatMap((product) => product.variants.map((variant) => ({ product, variant }))),
@@ -126,13 +143,13 @@ defineExpose({ focus: () => input.value?.focus() })
             :key="variant.id"
             type="button"
             class="pick"
-            :aria-label="`Add ${itemName({ product_name: product.name, variant_name: variant.name })} at ${formatMoney(variant[priceField])}`"
+            :aria-label="`Add ${itemName({ product_name: product.name, variant_name: variant.name })} at ${priceText(product, variant)}`"
             @click="pick(product, variant)"
           >
             <span v-if="variant.name" class="pick-size">{{ variant.name }}</span>
-            <strong>{{ formatMoney(variant[priceField]) }}</strong>
+            <strong>{{ priceText(product, variant) }}</strong>
             <span class="pick-stock" :class="{ out: variant.stock_quantity <= 0 }">
-              {{ formatQuantity(variant.stock_quantity, product.unit) }} in stock
+              {{ formatStock(variant.stock_quantity, product.unit, product.pack) }} in stock
             </span>
             <span v-if="picked.has(variant.id)" class="pick-added">{{ pickedNote }}</span>
           </button>

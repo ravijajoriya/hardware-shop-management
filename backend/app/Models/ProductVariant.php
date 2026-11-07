@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'sku', 'purchase_price', 'selling_price', 'mrp', 'stock_quantity', 'min_stock'])]
+#[Fillable(['name', 'sku', 'purchase_price', 'selling_price', 'pack_price', 'mrp', 'stock_quantity', 'min_stock'])]
 class ProductVariant extends Model
 {
     /** @use HasFactory<ProductVariantFactory> */
@@ -74,6 +74,23 @@ class ProductVariant extends Model
     }
 
     /**
+     * What a full pack sells for: its own price, or else the loose price times the pack size.
+     * Null for a product without a pack.
+     */
+    public function fullPackPrice(Product $product): ?float
+    {
+        $size = $product->packSize();
+
+        if ($size === null) {
+            return null;
+        }
+
+        return $this->pack_price !== null
+            ? (float) $this->pack_price
+            : round((float) $this->selling_price * $size, 2);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -81,8 +98,10 @@ class ProductVariant extends Model
     protected function casts(): array
     {
         return [
-            'purchase_price' => 'decimal:2',
+            // Per loose unit, with four decimals so a pack's price divides back exactly.
+            'purchase_price' => 'decimal:4',
             'selling_price' => 'decimal:2',
+            'pack_price' => 'decimal:2',
             'mrp' => 'decimal:2',
             'stock_quantity' => 'decimal:3',
             'min_stock' => 'decimal:3',

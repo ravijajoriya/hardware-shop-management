@@ -83,7 +83,7 @@ class BillService
      *
      * @param  array{
      *     customer: array{name: string, mobile: string, address?: string|null},
-     *     items: list<array{product_variant_id: int, quantity: float|string, price: float|string}>,
+     *     items: list<array{product_variant_id: int, sold_as?: string|null, quantity: float|string, price: float|string}>,
      *     payments?: list<array{method: string, amount: float|string, reference?: string|null}>|null,
      * }  $data
      *
@@ -204,7 +204,7 @@ class BillService
                 : $this->customers->resolve($details['name'], $details['mobile'], $details['address'] ?? null)->id;
 
             foreach ($plan['keep'] as ['item' => $item, 'quantity' => $quantity, 'price' => $price, 'line_total' => $lineTotal]) {
-                $this->moveStock($item->variant, (float) $item->quantity - $quantity);
+                $this->moveStock($item->variant, $item->inLooseUnits((float) $item->quantity - $quantity));
                 $this->bills->updateItem($item, [
                     'quantity' => $quantity,
                     'price' => Money::toRupees($price),
@@ -213,7 +213,7 @@ class BillService
             }
 
             foreach ($plan['remove'] as $item) {
-                $this->moveStock($item->variant, (float) $item->quantity);
+                $this->moveStock($item->variant, $item->inLooseUnits($item->quantity));
                 $this->bills->deleteItem($item);
             }
 
@@ -286,7 +286,7 @@ class BillService
                 $left = round((float) $item->quantity - (float) $item->returned_quantity, 3);
 
                 if ($left > 0 && $item->variant) {
-                    $this->variants->returnStock($item->variant, $left);
+                    $this->variants->returnStock($item->variant, $item->inLooseUnits($left));
                     $restocked[] = "{$this->name($item)}: +".ActivitySnapshot::quantity($left, $item->unit);
                 }
             }
@@ -448,15 +448,17 @@ class BillService
             $item = $existing[(int) $row['id']];
             $quantity = round((float) $row['quantity'], 3);
             $price = Money::toPaise($row['price']);
-            $unit = $item->variant?->product?->unit;
+            // A line keeps the unit it was sold in: packs are whole, and so are units like Piece.
+            $unit = $item->isInPacks() ? $item->variant?->product?->packUnit : $item->variant?->product?->unit;
+            $whole = $item->isInPacks() || ($unit && ! $unit->allow_decimal);
             $changed = $quantity !== round((float) $item->quantity, 3) || $price !== Money::toPaise($item->price);
 
             if ($changed && $locked) {
                 $errors["items.{$index}.quantity"] = [$this->returnedMessage()];
             } elseif ($changed && $quantity !== round((float) $item->quantity, 3) && ! $item->variant) {
                 $errors["items.{$index}.quantity"] = ['This product has been deleted, so its quantity cannot be changed.'];
-            } elseif ($unit && ! $unit->allow_decimal && floor($quantity) !== $quantity) {
-                $errors["items.{$index}.quantity"] = ["{$unit->name} ({$unit->short_name}) is sold in whole numbers."];
+            } elseif ($whole && floor($quantity) !== $quantity) {
+                $errors["items.{$index}.quantity"] = [($unit?->name ?? $item->unit)." ({$item->unit}) is sold in whole numbers."];
             }
 
             $keep[] = ['item' => $item, 'quantity' => $quantity, 'price' => $price, 'line_total' => (int) round($quantity * $price)];
@@ -485,9 +487,9 @@ class BillService
     }
 
     /**
-     * Add a line to the bill and take its items out of stock.
+     * Add a line to the bill and take its items out of stock: 2 coils of 90 m take 180 m out.
      *
-     * @param  array{variant: ProductVariant, quantity: float, line_total: int, item: array<string, mixed>}  $line
+     * @param  array{variant: ProductVariant, quantity: float, loose_quantity: float, line_total: int, item: array<string, mixed>}  $line
      */
     private function addLine(Bill $bill, array $line): void
     {
@@ -495,7 +497,7 @@ class BillService
             ...$line['item'],
             'line_total' => Money::toRupees($line['line_total']),
         ]);
-        $this->variants->reduceStock($line['variant'], $line['quantity']);
+        $this->variants->reduceStock($line['variant'], $line['loose_quantity']);
     }
 
     /**
@@ -629,10 +631,12 @@ class BillService
 
     /**
      * Work out each new bill line, checking that items sold by whole units are not sold in
-     * fractions. The keys of $items are kept in the messages, so they point at the right line.
+     * fractions. A product bought in packs is sold loose (5 m) or, when the line says so, by
+     * the pack (1 coil); quantity and price are then per pack. The keys of $items are kept in
+     * the messages, so they point at the right line.
      *
-     * @param  array<int, array{product_variant_id: int, quantity: float|string, price: float|string}>  $items
-     * @return list<array{variant: ProductVariant, quantity: float, line_total: int, item: array<string, mixed>}>
+     * @param  array<int, array{product_variant_id: int, sold_as?: string|null, quantity: float|string, price: float|string}>  $items
+     * @return list<array{variant: ProductVariant, quantity: float, loose_quantity: float, line_total: int, item: array<string, mixed>}>
      *
      * @throws ValidationException
      */
@@ -648,10 +652,21 @@ class BillService
 
         foreach ($items as $index => $item) {
             $variant = $variants[(int) $item['product_variant_id']];
-            $unit = $variant->product->unit;
+            $product = $variant->product;
+            $packSize = $product->packSize();
+            $inPacks = ($item['sold_as'] ?? 'loose') === 'pack';
+
+            if ($inPacks && $packSize === null) {
+                $errors["items.{$index}.sold_as"] = ["{$product->name} is not sold in packs."];
+
+                continue;
+            }
+
+            $unit = $inPacks ? $product->packUnit : $product->unit;
+            $unitSize = $inPacks ? $packSize : 1.0;
             $quantity = (float) $item['quantity'];
 
-            if (! $unit->allow_decimal && floor($quantity) !== $quantity) {
+            if (($inPacks || ! $unit->allow_decimal) && floor($quantity) !== $quantity) {
                 $errors["items.{$index}.quantity"] = ["{$unit->name} ({$unit->short_name}) is sold in whole numbers."];
 
                 continue;
@@ -660,18 +675,22 @@ class BillService
             $lines[] = [
                 'variant' => $variant,
                 'quantity' => $quantity,
+                'loose_quantity' => round($quantity * $unitSize, 3),
                 'line_total' => (int) round($quantity * Money::toPaise($item['price'])),
                 'item' => [
                     'product_id' => $variant->product_id,
                     'product_variant_id' => $variant->id,
-                    'product_name' => $variant->product->name,
+                    'product_name' => $product->name,
                     'variant_name' => $variant->name,
                     'unit' => $unit->short_name,
+                    'unit_size' => $unitSize,
+                    'base_unit' => $product->unit->short_name,
                     'quantity' => $quantity,
                     'price' => $item['price'],
-                    'list_price' => $variant->selling_price,
-                    // What the size cost the shop, for profit: its average purchase price now.
-                    'cost_price' => $variant->purchase_price,
+                    'list_price' => $inPacks ? $variant->fullPackPrice($product) : $variant->selling_price,
+                    // What one of the line's unit cost the shop, for profit: the size's average
+                    // purchase price now, times the pack size for a pack.
+                    'cost_price' => round((float) $variant->purchase_price * $unitSize, 2),
                 ],
             ];
         }

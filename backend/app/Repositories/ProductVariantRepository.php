@@ -15,7 +15,11 @@ class ProductVariantRepository
      */
     public function findWithUnits(array $ids): Collection
     {
-        return ProductVariant::with(['product:id,name,unit_id', 'product.unit:id,name,short_name,allow_decimal'])
+        return ProductVariant::with([
+            'product:id,name,unit_id,pack_unit_id,pack_size',
+            'product.unit:id,name,short_name,allow_decimal',
+            'product.packUnit:id,name,short_name',
+        ])
             ->whereKey($ids)
             ->get()
             ->keyBy('id');

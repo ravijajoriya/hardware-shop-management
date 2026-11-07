@@ -166,7 +166,7 @@ describe('billPayload', () => {
 
     expect(billPayload(customer, [line], payments)).toEqual({
       customer: { name: 'Ramesh Kumar', mobile: '9876543210', address: '12, MI Road' },
-      items: [{ product_variant_id: 70, quantity: 1.5, price: 110 }],
+      items: [{ product_variant_id: 70, sold_as: 'loose', quantity: 1.5, price: 110 }],
       payments,
     })
   })
@@ -393,8 +393,8 @@ describe('changing a saved bill', () => {
     ).toEqual({
       customer: { name: 'Ramesh', mobile: '9876543210', address: null },
       items: [
-        { id: 31, product_variant_id: 70, quantity: 2, price: 120 },
-        { product_variant_id: 71, quantity: 1, price: 130 },
+        { id: 31, product_variant_id: 70, sold_as: 'loose', quantity: 2, price: 120 },
+        { product_variant_id: 71, sold_as: 'loose', quantity: 1, price: 130 },
       ],
       refund: { method: 'cash', reference: null },
     })

@@ -1,4 +1,5 @@
 import { formatDate, formatDateTime, formatMoney, formatQuantity } from '@/utils/format'
+import { fullPackPrice } from '@/utils/packs'
 
 // How a customer can pay. Whatever is not paid stays due (udhaar) on the bill.
 export const PAYMENT_METHODS = [
@@ -107,19 +108,44 @@ function blankToNull(value) {
 
 // A line on the bill for one size of a product found in the search. `key` only exists in the
 // browser, to keep rows apart; the price starts at the product's selling price and can be changed.
+// A product bought in packs starts loose (5 m) and can be switched to the pack (1 coil) with
+// sellAs(). `unit` and `unit_size` are the line's current unit and how many loose units it is.
 export function billLine(product, variant) {
+  const pack = product.pack ?? null
+
   return {
     key: nextKey++,
     variant_id: variant.id,
     product_id: product.id,
     product_name: product.name,
     variant_name: variant.name,
+    loose_unit: product.unit,
+    loose_price: variant.selling_price,
+    pack: pack ? { ...pack, price: fullPackPrice(variant, pack) } : null,
+    sold_as: 'loose',
     unit: product.unit,
+    unit_size: 1,
     list_price: variant.selling_price,
     stock: variant.stock_quantity,
     quantity: 1,
     price: variant.selling_price,
   }
+}
+
+// Switch a line between loose and the pack: its unit and price follow, and it starts at 1.
+export function sellAs(line, mode) {
+  if (!line.pack || line.sold_as === mode) {
+    return
+  }
+
+  const inPacks = mode === 'pack'
+
+  line.sold_as = mode
+  line.unit = inPacks ? { ...line.pack.unit, allow_decimal: false } : line.loose_unit
+  line.unit_size = inPacks ? line.pack.size : 1
+  line.list_price = inPacks ? line.pack.price : line.loose_price
+  line.price = line.list_price
+  line.quantity = 1
 }
 
 function linePaise(line) {
@@ -136,7 +162,9 @@ export function lineTotal(line) {
 // A line whose product has been deleted has no stock to compare with.
 export function isShortOfStock(line) {
   return (
-    line.stock !== null && line.stock !== undefined && Number(line.quantity) > Number(line.stock)
+    line.stock !== null &&
+    line.stock !== undefined &&
+    Number(line.quantity) * (line.unit_size ?? 1) > Number(line.stock)
   )
 }
 
@@ -208,6 +236,7 @@ export function billPayload(customer, lines, payments) {
     },
     items: lines.map((line) => ({
       product_variant_id: line.variant_id,
+      sold_as: line.sold_as ?? 'loose',
       quantity: numberOrNull(line.quantity),
       price: numberOrNull(line.price),
     })),
@@ -218,22 +247,29 @@ export function billPayload(customer, lines, payments) {
 // --- Changing a saved bill ---
 
 // A saved bill line in the form, to edit. Its own items are already off the shelf, so they
-// count as in stock for it; `original` is what the bill said before the edit.
+// count as in stock for it; `original` is what the bill said before the edit. It keeps the unit
+// it was sold in (1 coil or 5 m); stock is in loose units.
 export function editLine(item) {
+  const unitSize = item.unit_size ?? 1
+
   return {
     key: nextKey++,
     id: item.id,
     variant_id: item.product_variant_id,
     product_name: item.product_name,
     variant_name: item.variant_name,
+    loose_unit: { short_name: item.base_unit ?? item.unit },
+    pack: item.current?.pack ?? null,
+    sold_as: item.sold_as ?? 'loose',
     unit: {
       short_name: item.unit,
       name: item.current?.unit_name ?? item.unit,
       allow_decimal: item.current?.allow_decimal ?? true,
     },
+    unit_size: unitSize,
     list_price: item.list_price,
     stock: item.current
-      ? Math.round((item.current.stock_quantity + item.quantity) * 1000) / 1000
+      ? Math.round((item.current.stock_quantity + item.quantity * unitSize) * 1000) / 1000
       : null,
     quantity: item.quantity,
     price: item.price,

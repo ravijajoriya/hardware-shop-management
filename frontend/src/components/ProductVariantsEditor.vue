@@ -1,7 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { formatMoney, formatQuantity } from '@/utils/format'
-import { isBelowMinimum, rowWorth, variantRow } from '@/utils/productForm'
+import { formatStock, packWord } from '@/utils/packs'
+import { isBelowMinimum, rowStock, rowWorth, variantRow } from '@/utils/productForm'
 import InfoTip from '@/components/InfoTip.vue'
 
 const rows = defineModel({ type: Array, required: true })
@@ -9,6 +10,8 @@ const rows = defineModel({ type: Array, required: true })
 const props = defineProps({
   // The product's unit; it decides whether stock may have decimals.
   unit: { type: Object, default: null },
+  // The pack it is bought in, such as a 90 m coil: prices and counts are then per pack.
+  pack: { type: Object, default: null },
   // Validation messages keyed the way the API sends them, such as "variants.0.selling_price".
   errors: { type: Object, default: () => ({}) },
 })
@@ -19,10 +22,14 @@ const stockStep = computed(() => (props.unit?.allow_decimal ? '0.001' : '1'))
 // corrections, which are recorded. Only a new variant takes its opening stock here.
 const hasSavedRows = computed(() => rows.value.some((row) => row.id))
 
+const packName = computed(() => (props.pack ? packWord(props.pack.unit) : ''))
+const packPlural = computed(() => (props.pack ? packWord(props.pack.unit, 2) : ''))
+const looseName = computed(() => props.unit?.short_name ?? 'unit')
+
 const totals = computed(() =>
   rows.value.reduce(
     (sum, row) => {
-      const worth = rowWorth(row)
+      const worth = rowWorth(row, props.pack)
 
       return {
         stock: sum.stock + worth.stock,
@@ -39,7 +46,26 @@ function errorFor(index, field) {
 }
 
 function add() {
-  rows.value.push(variantRow())
+  rows.value.push(variantRow({}, props.pack))
+}
+
+// The minimum is typed in packs for a product bought in packs.
+function belowMinimum(row) {
+  const minimum = String(row.min_stock ?? '').trim()
+
+  return isBelowMinimum(
+    rowStock(row, props.pack),
+    minimum === '' ? '' : Number(minimum) * (props.pack?.size ?? 1),
+  )
+}
+
+// A blank pack price sells the pack at the loose price times the pack size.
+function packPriceHint(row) {
+  const loose = Number(row.selling_price)
+
+  return loose > 0
+    ? `Blank: ${formatMoney(Math.round(loose * props.pack.size * 100) / 100)}`
+    : 'Optional'
 }
 
 function remove(index) {
@@ -59,11 +85,19 @@ function remove(index) {
         <tr>
           <th scope="col">Variant</th>
           <th scope="col">SKU <InfoTip term="SKU" /></th>
-          <th scope="col">Purchase price (₹) <InfoTip term="Purchase price" /></th>
-          <th scope="col">Selling price (₹)</th>
+          <th scope="col">
+            Purchase price (₹{{ pack ? ` per ${packName}` : '' }})
+            <InfoTip term="Purchase price" />
+          </th>
+          <th scope="col">
+            {{ pack ? `Loose price (₹ per ${looseName})` : 'Selling price (₹)' }}
+          </th>
+          <th v-if="pack" scope="col">{{ pack.unit.name }} price (₹)</th>
           <th scope="col">MRP (₹) <InfoTip term="MRP" /></th>
-          <th scope="col">Stock{{ unit ? ` (${unit.short_name})` : '' }}</th>
-          <th scope="col">Min. stock <InfoTip term="Minimum stock" /></th>
+          <th scope="col">Stock{{ unit && !pack ? ` (${unit.short_name})` : '' }}</th>
+          <th scope="col">
+            Min. stock{{ pack ? ` (${packPlural})` : '' }} <InfoTip term="Minimum stock" />
+          </th>
           <th scope="col" class="num">Stock worth</th>
           <th scope="col"><span class="visually-hidden">Remove</span></th>
         </tr>
@@ -95,7 +129,10 @@ function remove(index) {
             <p v-if="errorFor(index, 'sku')" class="field-error">{{ errorFor(index, 'sku') }}</p>
           </td>
           <td class="col-price">
-            <span class="cell-label"> Purchase price (₹) <InfoTip term="Purchase price" /> </span>
+            <span class="cell-label">
+              Purchase price (₹{{ pack ? ` per ${packName}` : '' }})
+              <InfoTip term="Purchase price" />
+            </span>
             <input
               v-model="row.purchase_price"
               class="input"
@@ -103,14 +140,16 @@ function remove(index) {
               min="0"
               step="0.01"
               required
-              :aria-label="`Variant ${index + 1} purchase price`"
+              :aria-label="`Variant ${index + 1} purchase price${pack ? ` per ${packName}` : ''}`"
             />
             <p v-if="errorFor(index, 'purchase_price')" class="field-error">
               {{ errorFor(index, 'purchase_price') }}
             </p>
           </td>
           <td class="col-price">
-            <span class="cell-label">Selling price (₹)</span>
+            <span class="cell-label">
+              {{ pack ? `Loose price (₹ per ${looseName})` : 'Selling price (₹)' }}
+            </span>
             <input
               v-model="row.selling_price"
               class="input"
@@ -118,10 +157,25 @@ function remove(index) {
               min="0"
               step="0.01"
               required
-              :aria-label="`Variant ${index + 1} selling price`"
+              :aria-label="`Variant ${index + 1} ${pack ? `loose price per ${looseName}` : 'selling price'}`"
             />
             <p v-if="errorFor(index, 'selling_price')" class="field-error">
               {{ errorFor(index, 'selling_price') }}
+            </p>
+          </td>
+          <td v-if="pack" class="col-price">
+            <span class="cell-label">{{ pack.unit.name }} price (₹)</span>
+            <input
+              v-model="row.pack_price"
+              class="input"
+              type="number"
+              min="0"
+              step="0.01"
+              :placeholder="packPriceHint(row)"
+              :aria-label="`Variant ${index + 1} ${packName} price`"
+            />
+            <p v-if="errorFor(index, 'pack_price')" class="field-error">
+              {{ errorFor(index, 'pack_price') }}
             </p>
           </td>
           <td class="col-price">
@@ -138,8 +192,37 @@ function remove(index) {
             <p v-if="errorFor(index, 'mrp')" class="field-error">{{ errorFor(index, 'mrp') }}</p>
           </td>
           <td class="col-stock">
-            <span class="cell-label">Stock{{ unit ? ` (${unit.short_name})` : '' }}</span>
-            <span v-if="row.id" class="stock-fixed">{{ formatQuantity(row.stock_quantity) }}</span>
+            <span class="cell-label">Stock{{ unit && !pack ? ` (${unit.short_name})` : '' }}</span>
+            <span v-if="row.id" class="stock-fixed">{{
+              pack
+                ? formatStock(row.stock_quantity, unit, pack)
+                : formatQuantity(row.stock_quantity)
+            }}</span>
+            <div v-else-if="pack" class="shelf-inputs">
+              <label class="with-unit">
+                <input
+                  v-model="row.stock_packs"
+                  class="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  :aria-label="`Variant ${index + 1} opening stock, full ${packPlural}`"
+                />
+                <span class="unit">{{ packPlural }}</span>
+              </label>
+              <label class="with-unit">
+                <input
+                  v-model="row.stock_loose"
+                  class="input"
+                  type="number"
+                  min="0"
+                  :step="stockStep"
+                  :aria-label="`Variant ${index + 1} opening stock, ${looseName} loose`"
+                />
+                <span class="unit">{{ looseName }} loose</span>
+              </label>
+            </div>
             <input
               v-else
               v-model="row.stock_quantity"
@@ -155,27 +238,27 @@ function remove(index) {
             </p>
           </td>
           <td class="col-min">
-            <span class="cell-label">Min. stock <InfoTip term="Minimum stock" /></span>
+            <span class="cell-label">
+              Min. stock{{ pack ? ` (${packPlural})` : '' }} <InfoTip term="Minimum stock" />
+            </span>
             <input
               v-model="row.min_stock"
               class="input"
               type="number"
               min="0"
-              :step="stockStep"
+              :step="pack ? 'any' : stockStep"
               placeholder="Optional"
-              :aria-label="`Variant ${index + 1} minimum stock`"
+              :aria-label="`Variant ${index + 1} minimum stock${pack ? ` in ${packPlural}` : ''}`"
             />
             <p v-if="errorFor(index, 'min_stock')" class="field-error">
               {{ errorFor(index, 'min_stock') }}
             </p>
-            <p v-else-if="isBelowMinimum(row.stock_quantity, row.min_stock)" class="low">
-              Below the minimum
-            </p>
+            <p v-else-if="belowMinimum(row)" class="low">Below the minimum</p>
           </td>
           <td class="num worth">
             <span class="cell-label">Stock worth</span>
-            <div>{{ formatMoney(rowWorth(row).cost) }}</div>
-            <div class="sells-for">sells for {{ formatMoney(rowWorth(row).selling) }}</div>
+            <div>{{ formatMoney(rowWorth(row, pack).cost) }}</div>
+            <div class="sells-for">sells for {{ formatMoney(rowWorth(row, pack).selling) }}</div>
           </td>
           <td class="actions">
             <button
@@ -202,7 +285,7 @@ function remove(index) {
   <div class="footer">
     <button type="button" class="btn" @click="add">Add variant</button>
     <p class="totals">
-      Total stock <strong>{{ formatQuantity(totals.stock, unit) }}</strong> · worth
+      Total stock <strong>{{ formatStock(totals.stock, unit, pack) }}</strong> · worth
       <strong>{{ formatMoney(totals.cost) }}</strong> at cost,
       <strong>{{ formatMoney(totals.selling) }}</strong> at selling price
     </p>
@@ -360,5 +443,24 @@ function remove(index) {
   .variants .field-error {
     max-width: none;
   }
+}
+
+/* Opening stock of a product bought in packs: full packs, then what is loose. */
+.shelf-inputs {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 9rem;
+}
+
+.shelf-inputs .with-unit {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.shelf-inputs .unit {
+  flex: none;
+  font-size: 0.85rem;
+  opacity: 0.8;
 }
 </style>

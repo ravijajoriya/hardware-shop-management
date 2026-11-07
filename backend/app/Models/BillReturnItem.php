@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUnitSize;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'bill_item_id', 'product_id', 'product_variant_id', 'product_name', 'variant_name', 'unit',
+    'bill_item_id', 'product_id', 'product_variant_id', 'product_name', 'variant_name', 'unit', 'unit_size', 'base_unit',
     'quantity', 'price', 'line_total', 'cost_price',
 ])]
 class BillReturnItem extends Model
 {
+    use HasUnitSize;
+
     /**
      * @return BelongsTo<BillReturn, $this>
      */
@@ -49,6 +52,7 @@ class BillReturnItem extends Model
     {
         return [
             'quantity' => 'decimal:3',
+            'unit_size' => 'decimal:3',
             'price' => 'decimal:2',
             'line_total' => 'decimal:2',
             'cost_price' => 'decimal:2',

@@ -75,6 +75,7 @@ class ProductService
     public function create(array $data): Product
     {
         $this->ensureWholeQuantities($data);
+        $data = $this->withPack($data);
 
         $data['slug'] = $this->resolveSlug($data);
         $data = $this->locations->withCode($data);
@@ -110,6 +111,7 @@ class ProductService
         );
 
         $this->ensureWholeQuantities($data);
+        $data = $this->withPack($data);
 
         $data['slug'] = $this->resolveSlug($data, $product);
         $data = $this->locations->withCode($data);
@@ -215,6 +217,46 @@ class ProductService
         if ($errors) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * A product bought in packs and sold loose, such as wire in 90 m coils sold by the metre.
+     * Packs are counted whole, and a pack of a unit counted whole (Box of pieces) holds a whole
+     * number of them. Without a pack, the pack size and the sizes' pack prices are cleared.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private function withPack(array $data): array
+    {
+        if (empty($data['pack_unit_id'])) {
+            $data['pack_unit_id'] = null;
+            $data['pack_size'] = null;
+            $data['variants'] = array_map(fn (array $variant) => [...$variant, 'pack_price' => null], $data['variants']);
+
+            return $data;
+        }
+
+        $pack = $this->units->find((int) $data['pack_unit_id']);
+        $unit = $this->units->find((int) $data['unit_id']);
+
+        if ($pack->allow_decimal) {
+            throw ValidationException::withMessages([
+                'pack_unit_id' => ["{$pack->name} is not counted in whole packs. Choose a pack such as Box, Bag or Coil."],
+            ]);
+        }
+
+        $size = (float) $data['pack_size'];
+
+        if (! $unit->allow_decimal && floor($size) !== $size) {
+            throw ValidationException::withMessages([
+                'pack_size' => ["One {$pack->name} holds a whole number of {$unit->name} ({$unit->short_name})."],
+            ]);
+        }
+
+        return $data;
     }
 
     /**

@@ -32,6 +32,8 @@ class ProductImportTest extends TestCase
         Unit::firstOrCreate(['short_name' => 'pc'], ['name' => 'Piece', 'allow_decimal' => false]);
         Unit::firstOrCreate(['short_name' => 'kg'], ['name' => 'Kilogram', 'allow_decimal' => true]);
         Unit::firstOrCreate(['short_name' => 'ltr'], ['name' => 'Litre', 'allow_decimal' => true]);
+        Unit::firstOrCreate(['short_name' => 'm'], ['name' => 'Metre', 'allow_decimal' => true]);
+        Unit::firstOrCreate(['short_name' => 'coil'], ['name' => 'Coil', 'allow_decimal' => false]);
     }
 
     /**
@@ -160,7 +162,57 @@ class ProductImportTest extends TestCase
         $this->check($this->excel(array_slice($example, 1), $example[0]))
             ->assertOk()
             ->assertJsonPath('data.problems', [])
-            ->assertJsonPath('data.ready', ['products' => 3, 'sizes' => 4]);
+            ->assertJsonPath('data.ready', ['products' => 4, 'sizes' => 5]);
+    }
+
+    public function test_products_bought_in_packs_are_entered_the_way_they_are_bought(): void
+    {
+        // Two sizes of wire in 90 m coils: coil prices, full coils plus loose metres, and a
+        // warning in coils. The second size leaves out the coil price, so it is 90 × ₹25.
+        $this->import($this->excel([
+            $this->row([
+                'name' => 'Copper Wire', 'size' => '1 mm', 'category' => 'Wires', 'unit' => 'm', 'pack' => 'Coils',
+                'pack_size' => 90, 'purchase_price' => 1000, 'selling_price' => 18, 'pack_price' => 1350,
+                'stock' => 5, 'loose_stock' => 85, 'min_stock' => 2,
+            ]),
+            $this->row([
+                'name' => 'Copper Wire', 'size' => '1.5 mm', 'purchase_price' => 1800, 'selling_price' => 25, 'stock' => 3,
+            ]),
+        ]))->assertCreated();
+
+        $wire = Product::query()->where('name', 'Copper Wire')->with(['packUnit', 'variants'])->sole();
+        $this->assertSame(['coil', '90.000'], [$wire->packUnit->short_name, $wire->pack_size]);
+
+        [$thin, $thick] = $wire->variants->sortBy('name')->values()->all();
+        $this->assertSame(['11.1111', '18.00', '1350.00', '535.000', '180.000'], [
+            $thin->purchase_price, $thin->selling_price, $thin->pack_price, $thin->stock_quantity, $thin->min_stock,
+        ]);
+        $this->assertSame(['20.0000', null, '270.000'], [$thick->purchase_price, $thick->pack_price, $thick->stock_quantity]);
+        $this->assertSame(2250.0, $thick->fullPackPrice($wire));
+    }
+
+    public function test_pack_columns_are_checked(): void
+    {
+        $response = $this->check($this->excel([
+            // Kilogram is not counted in whole packs.
+            $this->good(['name' => 'Binding Wire', 'unit' => 'pc', 'pack' => 'kg', 'pack_size' => 25]),
+            $this->good(['name' => 'No Size', 'unit' => 'pc', 'pack' => 'coil']),
+            $this->good(['name' => 'Size Only', 'pack_size' => 90]),
+            $this->good(['name' => 'Half Box', 'unit' => 'pc', 'pack' => 'coil', 'pack_size' => 12.5]),
+            $this->good(['name' => 'Loose Only', 'loose_stock' => 4, 'pack_price' => 100]),
+            $this->good(['name' => 'Part Coil', 'unit' => 'm', 'pack' => 'coil', 'pack_size' => 90, 'stock' => 5.5]),
+        ]))->assertOk();
+
+        $problems = collect($response->json('data.problems'))->map(fn (array $p) => [$p['row'], $p['column'], $p['message']])->all();
+
+        $this->assertContains([2, 'Bought in', 'Bought in "kg" is not a pack in the app. Use one of: coil, pc.'], $problems);
+        $this->assertContains([3, 'Pack size', 'Pack size is missing: how many are in one coil, such as 90.'], $problems);
+        $this->assertContains([4, 'Pack size', 'Fill in Bought in too, or leave Pack size blank.'], $problems);
+        $this->assertContains([5, 'Pack size', 'One pack holds a whole number of Piece (pc).'], $problems);
+        $this->assertContains([6, 'Loose stock', 'Loose stock is only for something bought in packs. Fill in Bought in, or leave it blank.'], $problems);
+        $this->assertContains([6, 'Pack price', 'Pack price is only for something bought in packs. Fill in Bought in, or leave it blank.'], $problems);
+        $this->assertContains([7, 'Opening stock', 'Opening stock counts full packs (coil). Write what is loose in Loose stock.'], $problems);
+        $this->assertSame(0, $response->json('data.ready.products'));
     }
 
     public function test_a_check_shows_what_would_happen_without_saving_anything(): void
@@ -204,7 +256,7 @@ class ProductImportTest extends TestCase
         $this->assertEquals(18, $paint->gst_rate);
         $this->assertSame('Weatherproof wall paint.', $paint->description);
         $this->assertSame(
-            [['1 L', 'APX-1L', '300.00', '360.00', '399.00', '10.000', '4.000'], ['4 L', 'APX-4L', '1100.00', '1350.00', '1499.00', '6.000', null]],
+            [['1 L', 'APX-1L', '300.0000', '360.00', '399.00', '10.000', '4.000'], ['4 L', 'APX-4L', '1100.0000', '1350.00', '1499.00', '6.000', null]],
             $paint->variants->sortBy('name')->map(fn (ProductVariant $variant) => [
                 $variant->name, $variant->sku, $variant->purchase_price, $variant->selling_price, $variant->mrp, $variant->stock_quantity, $variant->min_stock,
             ])->values()->all(),
@@ -250,7 +302,7 @@ class ProductImportTest extends TestCase
 
         $expected = [
             [2, 'Selling price', 'Selling price is missing.'],
-            [3, 'Unit', 'Unit "dozenz" is not in the app. Use one of: kg, ltr, pc.'],
+            [3, 'Unit', 'Unit "dozenz" is not in the app. Use one of: coil, kg, ltr, m, pc.'],
             [4, 'Opening stock', 'Opening stock must be a whole number for Piece (pc).'],
             [4, 'Minimum stock', 'Minimum stock must be a number, such as 10 or 2.5.'],
             [5, 'MRP', 'MRP cannot be lower than the selling price.'],

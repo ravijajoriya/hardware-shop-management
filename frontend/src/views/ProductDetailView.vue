@@ -4,6 +4,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/products'
 import { useStockStore } from '@/stores/stock'
 import { formatDate, formatMoney, formatQuantity } from '@/utils/format'
+import { formatStock, fullPackPrice, packWord } from '@/utils/packs'
 import { locationLabel } from '@/utils/location'
 import { stockChange } from '@/utils/stock'
 import InfoTip from '@/components/InfoTip.vue'
@@ -163,14 +164,21 @@ watch(
           <span v-if="hasSizes" class="note"
             >for {{ product.variants.length }} sizes, see below</span
           >
-          <span v-else class="note">per {{ product.unit.short_name }}</span>
+          <span v-else class="note"
+            >per {{ product.unit.short_name
+            }}<template v-if="product.pack">
+              · {{ formatMoney(fullPackPrice(product.variants[0], product.pack)) }} a
+              {{ packWord(product.pack.unit) }}</template
+            ></span
+          >
           <span v-if="!hasSizes && product.variants[0].mrp !== null" class="mrp">
             MRP <InfoTip term="MRP" /> {{ formatMoney(product.variants[0].mrp) }}
           </span>
         </div>
 
         <p class="stock">
-          <strong>{{ formatQuantity(product.stock_quantity, product.unit) }}</strong> in stock
+          <strong>{{ formatStock(product.stock_quantity, product.unit, product.pack) }}</strong> in
+          stock
           <span v-if="product.low_stock" class="badge badge-danger">Low stock</span>
         </p>
 
@@ -193,6 +201,13 @@ watch(
             <dt>Unit</dt>
             <dd>{{ product.unit.name }} ({{ product.unit.short_name }})</dd>
           </div>
+          <div v-if="product.pack">
+            <dt>Bought in</dt>
+            <dd>
+              {{ packWord(product.pack.unit, 2) }} of
+              {{ formatQuantity(product.pack.size, product.unit) }}, sold loose too
+            </dd>
+          </div>
           <div>
             <dt>HSN code <InfoTip term="HSN" /></dt>
             <dd>{{ product.hsn_code ?? 'Not set' }}</dd>
@@ -213,7 +228,7 @@ watch(
       <p v-if="corrected" class="alert-success corrected" role="status">
         Stock of {{ corrected.product_name
         }}{{ corrected.variant_name ? ` · ${corrected.variant_name}` : '' }} is now
-        {{ formatQuantity(corrected.stock_after, { short_name: corrected.unit }) }}
+        {{ formatStock(corrected.stock_after, product.unit, product.pack) }}
         ({{ stockChange(corrected.stock_after - corrected.stock_before, corrected.unit) }}).
       </p>
 
@@ -223,7 +238,14 @@ watch(
             <tr>
               <th v-if="hasSizes" scope="col">Size</th>
               <th scope="col">SKU <InfoTip term="SKU" /></th>
-              <th scope="col" class="num">Selling price</th>
+              <th scope="col" class="num">
+                {{
+                  product.pack ? `Loose price (per ${product.unit.short_name})` : 'Selling price'
+                }}
+              </th>
+              <th v-if="product.pack" scope="col" class="num">
+                {{ packWord(product.pack.unit) }} price
+              </th>
               <th scope="col" class="num">MRP <InfoTip term="MRP" /></th>
               <th scope="col" class="num">Stock</th>
               <th scope="col" class="num">Min. stock <InfoTip term="Minimum stock" /></th>
@@ -237,21 +259,35 @@ watch(
                 <span class="cell-label">SKU <InfoTip term="SKU" /></span>
                 {{ variant.sku ?? '—' }}
               </td>
-              <td class="num" data-label="Selling price">
+              <td
+                class="num"
+                :data-label="
+                  product.pack ? `Loose price (per ${product.unit.short_name})` : 'Selling price'
+                "
+              >
                 {{ formatMoney(variant.selling_price) }}
+              </td>
+              <td
+                v-if="product.pack"
+                class="num"
+                :data-label="`${packWord(product.pack.unit)} price`"
+              >
+                {{ formatMoney(fullPackPrice(variant, product.pack)) }}
               </td>
               <td class="num">
                 <span class="cell-label">MRP <InfoTip term="MRP" /></span>
                 {{ variant.mrp === null ? '—' : formatMoney(variant.mrp) }}
               </td>
               <td class="num" :class="{ low: variant.low_stock }" data-label="Stock">
-                {{ formatQuantity(variant.stock_quantity, product.unit) }}
+                {{ formatStock(variant.stock_quantity, product.unit, product.pack) }}
                 <div v-if="variant.low_stock" class="low-note">below the minimum</div>
               </td>
               <td class="num">
                 <span class="cell-label">Min. stock <InfoTip term="Minimum stock" /></span>
                 {{
-                  variant.min_stock === null ? '—' : formatQuantity(variant.min_stock, product.unit)
+                  variant.min_stock === null
+                    ? '—'
+                    : formatStock(variant.min_stock, product.unit, product.pack)
                 }}
               </td>
               <td class="actions">
@@ -324,6 +360,7 @@ watch(
     :product-name="product.name"
     :variant="correcting"
     :unit="product.unit"
+    :pack="product.pack"
     @saved="onCorrected"
     @close="correcting = null"
   />

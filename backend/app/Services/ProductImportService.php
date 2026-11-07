@@ -32,7 +32,7 @@ use Illuminate\Validation\ValidationException;
 class ProductImportService
 {
     /** The fields every size of a product shares, by column. */
-    private const PRODUCT_FIELDS = ['category', 'brand', 'unit', 'area', 'floor', 'rack', 'shelf', 'hsn', 'gst', 'description', 'active'];
+    private const PRODUCT_FIELDS = ['category', 'brand', 'unit', 'pack', 'pack_size', 'area', 'floor', 'rack', 'shelf', 'hsn', 'gst', 'description', 'active'];
 
     public function __construct(
         private readonly ProductRepository $products,
@@ -51,7 +51,11 @@ class ProductImportService
     public function template(): string
     {
         return ProductSheet::template(
-            $this->units->all()->map(fn (Unit $unit) => ['short_name' => $unit->short_name, 'name' => $unit->name])->all(),
+            $this->units->all()->map(fn (Unit $unit) => [
+                'short_name' => $unit->short_name,
+                'name' => $unit->name,
+                'allow_decimal' => (bool) $unit->allow_decimal,
+            ])->all(),
             $this->categoryPaths(),
             $this->brands->all()->pluck('name')->all(),
         );
@@ -105,6 +109,8 @@ class ProductImportService
                     'category_id' => $category->id,
                     'brand_id' => $brand?->id,
                     'unit_id' => $product['unit']->id,
+                    'pack_unit_id' => $product['pack']?->id,
+                    'pack_size' => $product['pack_size'],
                     'name' => $product['name'],
                     'description' => $product['description'],
                     'hsn_code' => $product['hsn'],
@@ -123,15 +129,10 @@ class ProductImportService
                 );
 
                 $saved = $this->products->create($data);
-                $this->products->syncVariants($saved, array_map(fn (array $size) => [
-                    'name' => $size['size'],
-                    'sku' => $size['sku'],
-                    'purchase_price' => $size['purchase_price'],
-                    'selling_price' => $size['selling_price'],
-                    'mrp' => $size['mrp'],
-                    'stock_quantity' => $size['stock'],
-                    'min_stock' => $size['min_stock'],
-                ], $product['sizes']));
+                $this->products->syncVariants($saved, array_map(
+                    fn (array $size) => $this->variant($size, $product['pack_size']),
+                    $product['sizes'],
+                ));
 
                 $sizes += count($product['sizes']);
                 $names[] = $product['name'];
@@ -326,6 +327,8 @@ class ProductImportService
             'mrp' => $this->amount($values, 'mrp', false, $problem),
             'stock' => $this->quantity($values, 'stock', true, $problem),
             'min_stock' => $this->quantity($values, 'min_stock', false, $problem),
+            'pack_price' => $this->amount($values, 'pack_price', false, $problem),
+            'loose_stock' => $this->quantity($values, 'loose_stock', false, $problem),
         ];
 
         if ($parsed['mrp'] !== null && $parsed['selling_price'] !== null && $parsed['mrp'] < $parsed['selling_price']) {
@@ -388,6 +391,8 @@ class ProductImportService
         } elseif ($unit === null) {
             $problem($rowOf('unit'), 'unit', "Unit \"{$value('unit')}\" is not in the app. Use one of: ".implode(', ', array_unique(array_map(fn (Unit $unit) => $unit->short_name, $units))).'.');
         }
+
+        [$pack, $packSize] = $this->pack($value('pack'), $value('pack_size'), $unit, $units, $rowOf, $problem);
 
         $category = $this->category($value('category'), $categories);
 
@@ -458,11 +463,32 @@ class ProductImportService
                 $sizes[Str::lower($row['size'])] ??= $row['row'];
             }
 
-            // Units such as Piece or Box are counted in whole numbers.
+            if ($value('pack') === null) {
+                foreach (['pack_price' => 'Pack price', 'loose_stock' => 'Loose stock'] as $key => $label) {
+                    if ($row[$key] !== null) {
+                        $problem($row['row'], $key, "{$label} is only for something bought in packs. Fill in Bought in, or leave it blank.");
+                    }
+                }
+            }
+
+            if ($pack !== null && $packSize !== null) {
+                // Opening stock counts full packs; what is loose goes in Loose stock.
+                if ($row['stock'] !== null && floor($row['stock']) != $row['stock']) {
+                    $problem($row['row'], 'stock', "Opening stock counts full packs ({$pack->short_name}). Write what is loose in Loose stock.");
+                }
+
+                $loose = ['loose_stock' => ['Loose stock', $row['loose_stock']], 'min_stock' => ['Minimum stock', $row['min_stock'] === null ? null : $row['min_stock'] * $packSize]];
+            } else {
+                $loose = ['stock' => ['Opening stock', $row['stock']], 'min_stock' => ['Minimum stock', $row['min_stock']]];
+            }
+
+            // Units such as Piece are counted in whole numbers, loose or inside packs.
             if ($unit && ! $unit->allow_decimal) {
-                foreach (['stock' => 'Opening stock', 'min_stock' => 'Minimum stock'] as $key => $label) {
-                    if ($row[$key] !== null && floor($row[$key]) != $row[$key]) {
-                        $problem($row['row'], $key, "{$label} must be a whole number for {$unit->name} ({$unit->short_name}).");
+                foreach ($loose as $key => [$label, $quantity]) {
+                    if ($quantity !== null && abs($quantity - round($quantity)) > 0.0005) {
+                        $problem($row['row'], $key, $pack !== null && $packSize !== null
+                            ? "{$label} must come to a whole number of {$unit->name} ({$unit->short_name})."
+                            : "{$label} must be a whole number for {$unit->name} ({$unit->short_name}).");
                     }
                 }
             }
@@ -472,6 +498,8 @@ class ProductImportService
             'name' => $rows[0]['name'],
             'rows' => array_column($rows, 'row'),
             'unit' => $unit,
+            'pack' => $packSize === null ? null : $pack,
+            'pack_size' => $pack === null ? null : $packSize,
             'category' => is_array($category) ? $category : ['parent' => null, 'new' => [], 'existing' => null, 'parts' => []],
             'brand' => $brand,
             'description' => $description,
@@ -480,6 +508,80 @@ class ProductImportService
             'active' => $active,
             ...$location,
             'sizes' => $rows,
+        ];
+    }
+
+    /**
+     * The pack a product is bought in and how many of its unit one holds, such as a coil of
+     * 90 m. Packs are counted whole; a pack of a unit counted whole holds a whole number of it.
+     *
+     * @param  array<string, Unit>  $units
+     * @param  callable(string): int  $rowOf
+     * @param  callable(int, string, string): void  $problem
+     * @return array{0: Unit|null, 1: float|null}
+     */
+    private function pack(?string $written, ?string $sizeWritten, ?Unit $unit, array $units, callable $rowOf, callable $problem): array
+    {
+        if ($written === null) {
+            if ($sizeWritten !== null) {
+                $problem($rowOf('pack_size'), 'pack_size', 'Fill in Bought in too, or leave Pack size blank.');
+            }
+
+            return [null, null];
+        }
+
+        $pack = $this->unit($written, $units);
+
+        if ($pack === null || $pack->allow_decimal) {
+            $packs = array_unique(array_map(fn (Unit $unit) => $unit->short_name, array_filter($units, fn (Unit $unit) => ! $unit->allow_decimal)));
+            $problem($rowOf('pack'), 'pack', "Bought in \"{$written}\" is not a pack in the app. Use one of: ".implode(', ', $packs).'.');
+            $pack = null;
+        } elseif ($unit !== null && $pack->id === $unit->id) {
+            $problem($rowOf('pack'), 'pack', 'Bought in is the pack, so it must be different from the unit it is sold loose by.');
+            $pack = null;
+        }
+
+        if ($sizeWritten === null) {
+            $problem($rowOf('pack'), 'pack_size', "Pack size is missing: how many are in one {$written}, such as 90.");
+
+            return [$pack, null];
+        }
+
+        $size = $this->number($sizeWritten);
+
+        if ($size === null || $size <= 1 || $size > StoreProductRequest::MAX_STOCK) {
+            $problem($rowOf('pack_size'), 'pack_size', 'Pack size is how many are in one pack: a number above 1, such as 90.');
+
+            return [$pack, null];
+        }
+
+        if ($unit !== null && ! $unit->allow_decimal && floor($size) != $size) {
+            $problem($rowOf('pack_size'), 'pack_size', "One pack holds a whole number of {$unit->name} ({$unit->short_name}).");
+
+            return [$pack, null];
+        }
+
+        return [$pack, round($size, 3)];
+    }
+
+    /**
+     * A size as it is saved: in loose units. With a pack, the sheet's purchase price is a pack's,
+     * its opening stock counts full packs (plus any loose stock) and its minimum is in packs.
+     *
+     * @param  array<string, mixed>  $size
+     * @return array<string, mixed>
+     */
+    private function variant(array $size, ?float $packSize): array
+    {
+        return [
+            'name' => $size['size'],
+            'sku' => $size['sku'],
+            'purchase_price' => $packSize === null ? $size['purchase_price'] : round($size['purchase_price'] / $packSize, 4),
+            'selling_price' => $size['selling_price'],
+            'pack_price' => $packSize === null ? null : $size['pack_price'],
+            'mrp' => $size['mrp'],
+            'stock_quantity' => $packSize === null ? $size['stock'] : round($size['stock'] * $packSize + ($size['loose_stock'] ?? 0), 3),
+            'min_stock' => $size['min_stock'] === null || $packSize === null ? $size['min_stock'] : round($size['min_stock'] * $packSize, 3),
         ];
     }
 

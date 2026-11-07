@@ -20,6 +20,7 @@ class ProductRepository
         'category:id,name',
         'brand:id,name',
         'unit:id,name,short_name,allow_decimal',
+        'packUnit:id,name,short_name',
         'variants',
         'mainImage',
     ];

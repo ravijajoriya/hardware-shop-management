@@ -2,12 +2,16 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ChecksRepeatedItems;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreStockEntryRequest extends FormRequest
 {
+    use ChecksRepeatedItems;
+
     private const MAX_PRICE = 9999999999.99;
 
     /**
@@ -36,7 +40,10 @@ class StoreStockEntryRequest extends FormRequest
 
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*' => ['array'],
-            'items.*.product_variant_id' => ['required', 'integer', 'distinct', Rule::exists('product_variants', 'id')],
+            'items.*.product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
+            // A product bought in packs is entered in packs (10 coils) unless the line says
+            // "loose" (45 m). Quantity and purchase price are in that unit.
+            'items.*.entered_as' => ['nullable', Rule::in(['loose', 'pack'])],
             'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999.999', 'decimal:0,3'],
             'items.*.purchase_price' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_PRICE, 'decimal:0,2'],
         ];
@@ -60,6 +67,19 @@ class StoreStockEntryRequest extends FormRequest
     }
 
     /**
+     * Get the "after" validation callables for the request.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        // Entered in packs unless it says loose.
+        return [
+            fn (Validator $validator) => $this->rejectRepeatedItems($validator, 'entered_as', 'pack', 'This item is on the list twice. Change its quantity instead.'),
+        ];
+    }
+
+    /**
      * Get the error messages for the defined validation rules.
      *
      * @return array<string, string>
@@ -70,7 +90,6 @@ class StoreStockEntryRequest extends FormRequest
             'received_on.before_or_equal' => 'The date received cannot be after today.',
             'items.required' => 'Add at least one item that came in.',
             'items.min' => 'Add at least one item that came in.',
-            'items.*.product_variant_id.distinct' => 'This item is on the list twice. Change its quantity instead.',
             'items.*.product_variant_id.exists' => 'This item no longer exists. Remove it from the list.',
         ];
     }

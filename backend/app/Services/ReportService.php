@@ -149,12 +149,13 @@ class ReportService
                 $line = $out->first() ?? $back->first();
                 $amount = $this->sum($out, 'line_total') - $this->sum($back, 'line_total');
 
+                // Counted in the loose unit, so 2 coils and 15 m of wire add up to 195 m.
                 return [
                     'product_id' => $line->product_id,
                     'name' => $line->product_name,
                     'variant_name' => $line->variant_name,
-                    'unit' => $line->unit,
-                    'quantity' => round((float) $out->sum('quantity') - (float) $back->sum('quantity'), 3),
+                    'unit' => $line->base_unit ?? $line->unit,
+                    'quantity' => round($this->looseQuantity($out) - $this->looseQuantity($back), 3),
                     'amount' => Money::toRupees($amount),
                     'profit' => Money::toRupees($amount - $this->cost($out) + $this->cost($back)),
                 ];
@@ -246,6 +247,14 @@ class ReportService
     private function cost(Collection $lines): int
     {
         return (int) $lines->sum(fn (object $line) => round((float) $line->quantity * Money::toPaise($line->cost_price)));
+    }
+
+    /**
+     * How much the lines come to in loose units: a line of 2 coils of 90 m is 180 m.
+     */
+    private function looseQuantity(Collection $lines): float
+    {
+        return (float) $lines->sum(fn (object $line) => (float) $line->quantity * (float) ($line->unit_size ?? 1));
     }
 
     private function sum(Collection $rows, string $column): int

@@ -37,6 +37,15 @@ class ProductResource extends JsonResource
                 'short_name' => $this->unit->short_name,
                 'allow_decimal' => $this->unit->allow_decimal,
             ]),
+            // Bought in packs and sold loose by its unit, such as "1 Coil = 90 m"; null when not.
+            'pack' => $this->whenLoaded('packUnit', fn () => $this->packUnit ? [
+                'unit' => [
+                    'id' => $this->packUnit->id,
+                    'name' => $this->packUnit->name,
+                    'short_name' => $this->packUnit->short_name,
+                ],
+                'size' => (float) $this->pack_size,
+            ] : null),
             // Where it is kept; "code" is built by the backend, such as SHOP-GF-R3-S2.
             'location' => [
                 'area' => $this->location_area->value,

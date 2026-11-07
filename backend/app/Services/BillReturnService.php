@@ -81,6 +81,8 @@ class BillReturnService
                     'product_name' => $item->product_name,
                     'variant_name' => $item->variant_name,
                     'unit' => $item->unit,
+                    'unit_size' => $item->unit_size,
+                    'base_unit' => $item->base_unit,
                     'quantity' => $quantity,
                     'price' => $item->price,
                     'line_total' => Money::toRupees($lineTotal),
@@ -90,7 +92,7 @@ class BillReturnService
 
                 // A deleted product has no stock to go back to.
                 if ($item->variant) {
-                    $this->variants->returnStock($item->variant, $quantity);
+                    $this->variants->returnStock($item->variant, $item->inLooseUnits($quantity));
                 }
             }
 
@@ -156,14 +158,16 @@ class BillReturnService
             $item = $items[(int) $row['bill_item_id']];
             $quantity = round((float) $row['quantity'], 3);
             $left = round((float) $item->quantity - (float) $item->returned_quantity, 3);
-            $unit = $item->variant?->product?->unit;
+            // Items come back in the unit they were sold in: whole packs for a pack.
+            $unit = $item->isInPacks() ? $item->variant?->product?->packUnit : $item->variant?->product?->unit;
+            $whole = $item->isInPacks() || ($unit && ! $unit->allow_decimal);
 
             if ($left <= 0) {
                 $errors["items.{$index}.quantity"] = ['All of this has already been returned.'];
             } elseif ($quantity > $left) {
                 $errors["items.{$index}.quantity"] = ['Only '.ActivitySnapshot::quantity($left, $item->unit).' of this is left to return.'];
-            } elseif ($unit && ! $unit->allow_decimal && floor($quantity) !== $quantity) {
-                $errors["items.{$index}.quantity"] = ["{$unit->name} ({$unit->short_name}) is counted in whole numbers."];
+            } elseif ($whole && floor($quantity) !== $quantity) {
+                $errors["items.{$index}.quantity"] = [($unit?->name ?? $item->unit)." ({$item->unit}) is counted in whole numbers."];
             }
 
             $lines[] = ['item' => $item, 'quantity' => $quantity, 'line_total' => (int) round($quantity * Money::toPaise($item->price))];

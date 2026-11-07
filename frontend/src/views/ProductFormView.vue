@@ -7,6 +7,9 @@ import {
   imageChanges,
   imageOrder,
   productPayload,
+  rowsResized,
+  rowsToLoose,
+  rowsToPacks,
   savedImageItem,
   variantRow,
 } from '@/utils/productForm'
@@ -18,6 +21,7 @@ import {
   locationCode,
   locationLabel,
 } from '@/utils/location'
+import { packWord } from '@/utils/packs'
 import FieldLabel from '@/components/FieldLabel.vue'
 import InfoTip from '@/components/InfoTip.vue'
 import ProductImagesField from '@/components/ProductImagesField.vue'
@@ -48,6 +52,10 @@ const form = reactive({
   // Typed when the brand is not in the list yet (brand_id is then NEW_BRAND).
   new_brand_name: '',
   unit_id: '',
+  // Bought in packs and sold loose by the unit: "1 Coil = 90 m".
+  has_pack: false,
+  pack_unit_id: '',
+  pack_size: '',
   description: '',
   hsn_code: '',
   gst_rate: '',
@@ -105,6 +113,61 @@ const unit = computed(
   () => store.options.units.find((option) => option.id === form.unit_id) ?? null,
 )
 
+// Packs are counted whole (Box, Bag, Coil and the like) and differ from the loose unit.
+const packUnits = computed(() =>
+  selectable(store.options.units, form.pack_unit_id).filter(
+    (option) => !option.allow_decimal && option.id !== form.unit_id,
+  ),
+)
+const packUnit = computed(
+  () => store.options.units.find((option) => option.id === form.pack_unit_id) ?? null,
+)
+const packSize = computed(() => {
+  const size = Number(form.pack_size)
+
+  return form.has_pack && Number.isFinite(size) && size > 1 ? size : null
+})
+
+// The pack size the variant rows are written in, or null while they are in loose units. Rows
+// change units only when the pack is ticked, unticked or its size is committed (on leaving the
+// box), never at each keystroke, so typing 90 never passes through a coil of 9 m.
+const rowsSize = ref(null)
+
+function syncRowsToPack() {
+  const size = packSize.value
+
+  if (size === rowsSize.value) {
+    return
+  }
+
+  if (rowsSize.value === null) {
+    rowsToPacks(variants.value, size)
+  } else if (size === null) {
+    rowsToLoose(variants.value, rowsSize.value)
+  } else {
+    rowsResized(variants.value, rowsSize.value, size)
+  }
+
+  rowsSize.value = size
+}
+
+watch(() => form.has_pack, syncRowsToPack)
+
+const packNoun = computed(() => (packUnit.value ? packWord(packUnit.value) : 'pack'))
+const packNouns = computed(() => (packUnit.value ? packWord(packUnit.value, 2) : 'packs'))
+
+// The pack as the variants editor shows it, in the units the rows are written in.
+const editorPack = computed(() =>
+  rowsSize.value === null
+    ? null
+    : {
+        unit: packUnit.value
+          ? { name: packUnit.value.name, short_name: packUnit.value.short_name }
+          : { name: 'Pack', short_name: 'pack' },
+        size: rowsSize.value,
+      },
+)
+
 const addingBrand = computed(() => form.brand_id === NEW_BRAND)
 const newBrandInput = ref(null)
 
@@ -133,6 +196,9 @@ function fill(product) {
     category_id: product.category.id,
     brand_id: product.brand?.id ?? '',
     unit_id: product.unit.id,
+    has_pack: product.pack !== null && product.pack !== undefined,
+    pack_unit_id: product.pack?.unit.id ?? '',
+    pack_size: product.pack?.size ?? '',
     description: product.description ?? '',
     hsn_code: product.hsn_code ?? '',
     gst_rate: product.gst_rate ?? '',
@@ -143,7 +209,9 @@ function fill(product) {
     is_active: product.is_active,
   })
 
-  variants.value = product.variants.map(variantRow)
+  // Rows are written in the pack's units from the start, so ticking stays as it is.
+  rowsSize.value = product.pack?.size ?? null
+  variants.value = product.variants.map((variant) => variantRow(variant, product.pack))
   setImages(product.images)
 }
 
@@ -204,7 +272,9 @@ async function save() {
   let product
 
   try {
-    const payload = productPayload(form, variants.value)
+    // A pack size typed but not yet left still counts.
+    syncRowsToPack()
+    const payload = productPayload(form, variants.value, editorPack.value)
 
     product = isEdit.value ? await store.update(props.id, payload) : await store.create(payload)
   } catch (e) {
@@ -336,6 +406,47 @@ onMounted(load)
           </select>
           <p v-if="errorFor('unit_id')" class="field-error">{{ errorFor('unit_id') }}</p>
           <p v-else class="hint">Stock and prices are per this unit.</p>
+        </div>
+
+        <div class="field wide pack-field">
+          <label class="checkbox">
+            <input v-model="form.has_pack" type="checkbox" />
+            Also bought in packs and sold loose, such as wire in coils or nails in bags
+          </label>
+          <div v-if="form.has_pack" class="pack-row">
+            <span>1</span>
+            <select
+              id="product-pack"
+              v-model="form.pack_unit_id"
+              class="input"
+              required
+              aria-label="The pack it is bought in"
+            >
+              <option value="" disabled>Choose a pack</option>
+              <option v-for="option in packUnits" :key="option.id" :value="option.id">
+                {{ option.name }}
+              </option>
+            </select>
+            <span>=</span>
+            <input
+              id="product-pack-size"
+              v-model="form.pack_size"
+              class="input"
+              type="number"
+              min="1.001"
+              step="any"
+              required
+              :aria-label="`How many ${unit?.short_name ?? 'units'} are in one pack`"
+              @change="syncRowsToPack"
+            />
+            <span>{{ unit?.short_name ?? '' }}</span>
+          </div>
+          <p v-if="errorFor('pack_unit_id')" class="field-error">{{ errorFor('pack_unit_id') }}</p>
+          <p v-if="errorFor('pack_size')" class="field-error">{{ errorFor('pack_size') }}</p>
+          <p v-else-if="form.has_pack" class="hint">
+            Prices and stock below are then per {{ packNoun }} where it says so. Bills can sell it
+            loose or by the {{ packNoun }}, and Stock in takes whole {{ packNouns }}.
+          </p>
         </div>
 
         <div class="field">
@@ -489,7 +600,12 @@ onMounted(load)
     <section class="form-section">
       <h2>Variants, prices and stock</h2>
 
-      <ProductVariantsEditor v-model="variants" :unit="unit" :errors="fieldErrors" />
+      <ProductVariantsEditor
+        v-model="variants"
+        :unit="unit"
+        :pack="editorPack"
+        :errors="fieldErrors"
+      />
       <p v-if="errorFor('variants')" class="field-error">{{ errorFor('variants') }}</p>
     </section>
 
@@ -650,5 +766,31 @@ onMounted(load)
   .form-section {
     padding: 1rem;
   }
+}
+
+/* "1 [Coil] = [90] m" on one line. */
+.pack-field .checkbox {
+  margin-bottom: 0.5rem;
+}
+
+.pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pack-row .input {
+  width: auto;
+  min-width: 0;
+}
+
+.pack-row select.input {
+  flex: 1 1 9rem;
+  max-width: 14rem;
+}
+
+.pack-row input.input {
+  flex: 0 1 7rem;
 }
 </style>

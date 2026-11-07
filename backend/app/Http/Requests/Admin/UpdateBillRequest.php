@@ -31,7 +31,7 @@ class UpdateBillRequest extends StoreBillRequest
             ],
             // An existing line keeps its item, so only new lines need to say which item they are.
             'items.*.product_variant_id' => [
-                'required_without:items.*.id', 'nullable', 'integer', 'distinct', Rule::exists('product_variants', 'id'),
+                'required_without:items.*.id', 'nullable', 'integer', Rule::exists('product_variants', 'id'),
             ],
             // How to give money back if the new total is less than what was paid.
             'refund' => ['nullable', 'array'],

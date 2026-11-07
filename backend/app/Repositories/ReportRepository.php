@@ -34,7 +34,7 @@ class ReportRepository
             ->get([
                 'bills.id as bill_id', 'bills.created_at as at', 'bills.customer_id', 'bills.customer_name',
                 'bill_items.product_id', 'bill_items.product_name', 'bill_items.variant_name', 'bill_items.unit',
-                'bill_items.quantity', 'bill_items.line_total', 'bill_items.cost_price', 'bill_items.cost_estimated',
+                'bill_items.unit_size', 'bill_items.base_unit', 'bill_items.quantity', 'bill_items.line_total', 'bill_items.cost_price', 'bill_items.cost_estimated',
             ]);
     }
 
@@ -55,7 +55,8 @@ class ReportRepository
             ->get([
                 'bill_returns.returned_at as at', 'bills.customer_id', 'bills.customer_name',
                 'bill_return_items.product_id', 'bill_return_items.product_name', 'bill_return_items.variant_name',
-                'bill_return_items.unit', 'bill_return_items.quantity', 'bill_return_items.line_total',
+                'bill_return_items.unit', 'bill_return_items.unit_size', 'bill_return_items.base_unit',
+                'bill_return_items.quantity', 'bill_return_items.line_total',
                 'bill_return_items.cost_price',
             ]);
     }

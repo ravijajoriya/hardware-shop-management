@@ -15,10 +15,13 @@ class UnitSeederTest extends TestCase
     {
         $this->seed(UnitSeeder::class);
 
-        $this->assertDatabaseCount('units', 20);
+        $this->assertDatabaseCount('units', 29);
         $this->assertDatabaseHas('units', ['name' => 'Piece', 'short_name' => 'pc', 'allow_decimal' => false, 'is_active' => true]);
         $this->assertDatabaseHas('units', ['name' => 'Kilogram', 'short_name' => 'kg', 'allow_decimal' => true, 'is_active' => true]);
         $this->assertDatabaseHas('units', ['name' => 'Square Foot', 'short_name' => 'sq ft', 'allow_decimal' => true]);
+        // Packs that products are bought in and sold loose from are counted whole.
+        $this->assertDatabaseHas('units', ['name' => 'Coil', 'short_name' => 'coil', 'allow_decimal' => false]);
+        $this->assertDatabaseHas('units', ['name' => 'Gross', 'short_name' => 'gross', 'allow_decimal' => false]);
     }
 
     public function test_running_it_again_adds_nothing(): void
@@ -26,7 +29,7 @@ class UnitSeederTest extends TestCase
         $this->seed(UnitSeeder::class);
         $this->seed(UnitSeeder::class);
 
-        $this->assertDatabaseCount('units', 20);
+        $this->assertDatabaseCount('units', 29);
     }
 
     public function test_it_skips_units_whose_name_or_short_name_is_already_used(): void
@@ -37,7 +40,7 @@ class UnitSeederTest extends TestCase
 
         $this->seed(UnitSeeder::class);
 
-        $this->assertDatabaseCount('units', 20);
+        $this->assertDatabaseCount('units', 29);
         $this->assertDatabaseMissing('units', ['name' => 'Kilogram']);
         $this->assertDatabaseMissing('units', ['short_name' => 'pc']);
         $this->assertFalse($kilo->fresh()->allow_decimal);
